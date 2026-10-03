@@ -57,8 +57,6 @@ describe("ingredients namespace", () => {
     const page = await client.ingredients.search({ inciName: "RETINOL" });
     expect(page.items[0].matchedOn).toBe("inciName");
     expect(page.items[0].exact).toBe(true);
-    const contentType =
-      new Headers(fetch.calls[0].init?.headers).get("content-type") ?? "";
     const body = String(fetch.calls[0].init?.body);
     expect(body).toContain('"term":{"itemType":"ingredient"}');
     expect(body).toContain('"term":{"inciName":"RETINOL"}');

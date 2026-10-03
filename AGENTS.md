@@ -83,6 +83,7 @@ scanning). Both are needed for full coverage.
 | `npm test` | Run tests once (Vitest) |
 | `npm run test:watch` | Run tests in watch mode |
 | `npm run test:coverage` | Run tests with coverage reporting |
+| `npm run test:live` | Run live smoke tests against the real CosIng endpoints (requires `COSING_API_KEY`; opt-in, never in CI) |
 | `npx changeset` | Create a changeset (required for any change that affects published output) |
 
 ---
