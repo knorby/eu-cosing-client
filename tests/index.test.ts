@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import * as cosing from "../src/index";
 
 /**
  * SH-01 guard: the core runtime must stay usable in React Native, where
@@ -34,5 +35,34 @@ describe("universal runtime guard", () => {
       }
     }
     expect(offenders).toEqual([]);
+  });
+});
+
+describe("export surface", () => {
+  it("exposes the public API", () => {
+    expect(typeof cosing.CosingClient).toBe("function");
+    expect(typeof cosing.CosingError).toBe("function");
+    expect(typeof cosing.parseAnnexCsv).toBe("function");
+    expect(typeof cosing.buildMultipartBody).toBe("function");
+    expect(typeof cosing.splitIdentifiers).toBe("function");
+    expect(typeof cosing.toIngredient).toBe("function");
+    expect(cosing.DEFAULT_SEARCH_API_URL).toContain("webgate.ec.europa.eu");
+    expect(cosing.DEFAULT_EXPORT_API_URL).toContain("api.tech.ec.europa.eu");
+  });
+
+  it("namespaces exist on client instances", () => {
+    const client = new cosing.CosingClient({
+      fetch: (() => Promise.resolve(new Response("{}"))) as typeof fetch,
+      apiKey: "sekrit",
+    });
+    for (const namespace of [
+      "ingredients",
+      "functions",
+      "substances",
+      "annexes",
+      "raw",
+    ] as const) {
+      expect(client[namespace]).toBeTruthy();
+    }
   });
 });
