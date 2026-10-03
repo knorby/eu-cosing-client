@@ -45,18 +45,27 @@ function assertAnnexId(annex: string): asserts annex is AnnexId {
   }
 }
 
-/** True when the raw `" / "`-joined (or `/`/`;` mixed) string contains the identifier. */
-function identifierMatches(
-  rawJoined: string | undefined,
-  target: string,
-): boolean {
-  if (!rawJoined) return false;
-  const normalized = target.trim().toLowerCase();
-  if (rawJoined.trim().toLowerCase() === normalized) return true;
-  return rawJoined
-    .split(/[/;]/u)
-    .map((part) => part.trim().toLowerCase())
-    .includes(normalized);
+/**
+ * Escapes a value for the source's Lucene-style wildcard query, the same
+ * way the official web app escapes its advanced-search CAS/EC input:
+ * angle brackets become spaces, then reserved characters are backslash-
+ * escaped (including the hyphens in CAS/EC numbers).
+ */
+function escapeWildcard(value: string): string {
+  return value
+    .trim()
+    .replace(/[<>]/g, " ")
+    .replace(/[+\-=&&||!(){}[\]^"~*?:\\/]/g, "\\$&");
+}
+
+/** The source's own CAS/EC lookup: a wildcard query scoped to identifier fields. */
+function identifierClause(value: string): CosingSearchClause {
+  return {
+    text: {
+      query: `*${escapeWildcard(value)}*`,
+      fields: ["casNo", "ecNo"],
+    },
+  };
 }
 
 function toPage<T>(
@@ -81,9 +90,11 @@ export interface IngredientSearchCriteria {
   /** Exact Common Ingredients Glossary name. */
   glossaryName?: string;
   /**
-   * CAS number, full or partial (`"68-26-8"`). The source stores
-   * multi-value CAS as one joined string, so this is matched via fuzzy
-   * text search plus a client-side post-filter on the split values.
+   * CAS number, full or partial (`"68-26-8"`). Matched via the source's
+   * wildcard query scoped to the `casNo`/`ecNo` fields — the same
+   * mechanism the official app's advanced search uses, and the only one
+   * that reaches values inside the source's `" / "`-joined multi-identifier
+   * strings (the fuzzy `text` parameter does not index identifier fields).
    */
   casNo?: string;
   /** EC number, full or partial — matched like `casNo`. */
@@ -146,13 +157,14 @@ export class IngredientsNamespace {
       clauses.push({ term: { functionName: criteria.functionName } });
     }
     if (criteria.status) clauses.push({ term: { status: criteria.status } });
-
-    // Identifiers ride the fuzzy text parameter (term matching cannot hit
-    // partial values inside " / "-joined strings); everything else follows.
-    const text = criteria.casNo ?? criteria.ecNo ?? criteria.text ?? "";
+    // Identifier lookup rides the source's wildcard clause, not the fuzzy
+    // text parameter (which does not index casNo/ecNo at all).
+    if (criteria.casNo || criteria.ecNo) {
+      clauses.push(identifierClause(criteria.casNo ?? criteria.ecNo ?? ""));
+    }
 
     const response = await this.transport.search({
-      text,
+      text: criteria.text ?? "",
       clauses,
       page,
       pageSize,
@@ -166,10 +178,12 @@ export class IngredientsNamespace {
       exact = true;
     } else if (criteria.casNo) {
       matchedOn = "casNo";
-      exact = true;
+      // A wildcard is a substring match: *68-26-8* would also hit
+      // 68-26-80. Honest non-exact.
+      exact = false;
     } else if (criteria.ecNo) {
       matchedOn = "ecNo";
-      exact = true;
+      exact = false;
     } else if (criteria.glossaryName) {
       matchedOn = "glossaryName";
       exact = true;
@@ -182,20 +196,9 @@ export class IngredientsNamespace {
     }
 
     const retrievedAt = new Date().toISOString();
-    const result = toPage(response, (result) =>
+    return toPage(response, (result) =>
       toIngredient(result, { retrievedAt, matchedOn, exact }),
     );
-
-    if (criteria.casNo || criteria.ecNo) {
-      const target = criteria.casNo ?? criteria.ecNo ?? "";
-      const raw = criteria.casNo
-        ? (match: CosingMatch<CosingIngredient>) => match.item.rawCasNumber
-        : (match: CosingMatch<CosingIngredient>) => match.item.rawEcNumber;
-      result.items = result.items.filter((match) =>
-        identifierMatches(raw(match), target),
-      );
-    }
-    return result;
   }
 
   async get(
@@ -337,9 +340,11 @@ export class SubstancesNamespace {
     const clauses: CosingSearchClause[] = [{ term: { itemType: "substance" } }];
     if (criteria.annex) clauses.push({ term: { annexNo: criteria.annex } });
     if (criteria.refNo) clauses.push({ term: { refNo: criteria.refNo } });
-    const text = criteria.casNo ?? criteria.ecNo ?? criteria.text ?? "";
+    if (criteria.casNo || criteria.ecNo) {
+      clauses.push(identifierClause(criteria.casNo ?? criteria.ecNo ?? ""));
+    }
     const response = await this.transport.search({
-      text,
+      text: criteria.text ?? "",
       clauses,
       page,
       pageSize,
@@ -355,25 +360,15 @@ export class SubstancesNamespace {
       exact = true;
     } else if (criteria.casNo) {
       matchedOn = "casNo";
-      exact = true;
+      exact = false;
     } else if (criteria.ecNo) {
       matchedOn = "ecNo";
-      exact = true;
+      exact = false;
     }
     const retrievedAt = new Date().toISOString();
-    const result = toPage(response, (result) =>
+    return toPage(response, (result) =>
       toSubstance(result, { retrievedAt, matchedOn, exact }),
     );
-    if (criteria.casNo || criteria.ecNo) {
-      const target = criteria.casNo ?? criteria.ecNo ?? "";
-      const raw = criteria.casNo
-        ? (match: CosingMatch<CosingSubstance>) => match.item.rawCasNumber
-        : (match: CosingMatch<CosingSubstance>) => match.item.rawEcNumber;
-      result.items = result.items.filter((match) =>
-        identifierMatches(raw(match), target),
-      );
-    }
-    return result;
   }
 
   async *searchAll(

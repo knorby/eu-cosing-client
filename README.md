@@ -83,7 +83,11 @@ const retinol = await client.ingredients.get("37479");
 
 // Functions assigned by the source, with vocabulary definitions:
 const fns = await client.ingredients.getFunctions("37479");
-const vocabulary = await client.functions.listAll();
+
+// The full function vocabulary (async generator):
+for await (const fn of client.functions.listAll()) {
+  console.log(fn.item.name);
+}
 
 // Regulatory annexes (no API key needed):
 const annexII = await client.annexes.get("II");
@@ -140,10 +144,15 @@ Annex exports are complete single-file CSVs — no pagination.
 ## Known source quirks
 
 - **`text` vs `term` matching** — the `text` parameter is fuzzy full-text
-  search; exact criteria (INCI, CAS, EC, status, function) are translated to
-  the API's `term` filters. `ingredients.search({ casNo })` handles the
-  split of multi-value identifier strings client-side and reports what
-  matched.
+  search; exact criteria (INCI, status, function) are translated to the
+  API's `term` filters.
+- **CAS/EC lookup uses the source's wildcard query** — the `text`
+  parameter does **not** index identifier fields at all (`text=68-26-8`
+  returns zero results). `ingredients.search({ casNo })` instead sends the
+  wildcard query clause the official web app's advanced search uses
+  (`*value*` scoped to the `casNo`/`ecNo` fields, with Lucene special
+  characters escaped), so partial values match multi-identifier strings.
+  It is a substring match, so results carry `exact: false`.
 - **Multi-value identifier strings** — CAS/EC numbers for an entry are
   stored as one `" / "`-joined string (e.g. `"68-26-8 / 11103-57-4"`). The
   curated types split these into arrays and preserve the raw string.

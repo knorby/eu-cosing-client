@@ -3,7 +3,13 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { CosingClient } from "../src/client";
 import type { CosingClientConfig } from "../src/http";
-import { queuedFetch, searchResponse, searchResult } from "./helpers";
+import {
+  boundaryOf,
+  parseMultipart,
+  queuedFetch,
+  searchResponse,
+  searchResult,
+} from "./helpers";
 
 function fixture(name: string): string {
   return readFileSync(join(import.meta.dirname, "fixtures", name), "utf8");
@@ -58,27 +64,74 @@ describe("ingredients namespace", () => {
     expect(body).toContain('"term":{"inciName":"RETINOL"}');
   });
 
-  it("post-filters partial CAS matches and reports matchedOn casNo", async () => {
-    const { client } = clientWith(() =>
+  it("searches partial CAS via the source's wildcard clause scoped to casNo/ecNo", async () => {
+    const { client, fetch } = clientWith(() =>
       Response.json(
-        searchResponse(17, [
+        searchResponse(1, [
           searchResult({
             substanceId: ["37479"],
             casNo: ["68-26-8 / 11103-57-4"],
           }),
-          searchResult({ substanceId: ["1"], casNo: ["7732-18-5"] }),
         ]),
       ),
     );
     const page = await client.ingredients.search({ casNo: "68-26-8" });
-    // Server fuzzy text search returns both; the client post-filter keeps
-    // only the record whose identifier list actually contains the CAS.
+    // The server does the matching via the wildcard query (the same
+    // mechanism the official app's advanced search uses); no client-side
+    // post-filter is involved.
     expect(page.items).toHaveLength(1);
     expect(page.items[0].item.substanceId).toBe("37479");
     expect(page.items[0].matchedOn).toBe("casNo");
-    expect(page.items[0].exact).toBe(true);
-    // hasMore/total still reflect the server response, not the post-filter.
-    expect(page.total).toBe(17);
+    expect(page.items[0].exact).toBe(false);
+    const url = new URL(fetch.calls[0].url);
+    expect(url.searchParams.get("text")).toBe("");
+    const contentType =
+      new Headers(fetch.calls[0].init?.headers).get("content-type") ?? "";
+    const parts = parseMultipart(
+      String(fetch.calls[0].init?.body),
+      boundaryOf(contentType),
+    );
+    const query = JSON.parse(
+      parts.find((part) => part.name === "query")?.value ?? "null",
+    );
+    expect(query).toEqual({
+      bool: {
+        must: [
+          { term: { itemType: "ingredient" } },
+          {
+            text: { query: "*68\\-26\\-8*", fields: ["casNo", "ecNo"] },
+          },
+        ],
+      },
+    });
+  });
+
+  it("searches EC numbers through the same wildcard clause", async () => {
+    const { client, fetch } = clientWith(() =>
+      Response.json(
+        searchResponse(1, [
+          searchResult({
+            substanceId: ["37479"],
+            ecNo: ["200-683-7 / 234-328-2"],
+          }),
+        ]),
+      ),
+    );
+    const page = await client.ingredients.search({ ecNo: "200-683-7" });
+    expect(page.items[0].matchedOn).toBe("ecNo");
+    expect(page.items[0].exact).toBe(false);
+    const contentType =
+      new Headers(fetch.calls[0].init?.headers).get("content-type") ?? "";
+    const parts = parseMultipart(
+      String(fetch.calls[0].init?.body),
+      boundaryOf(contentType),
+    );
+    const query = JSON.parse(
+      parts.find((part) => part.name === "query")?.value ?? "null",
+    );
+    expect(query.bool.must[1]).toEqual({
+      text: { query: "*200\\-683\\-7*", fields: ["casNo", "ecNo"] },
+    });
   });
 
   it("gets a single record by stable substance ID", async () => {

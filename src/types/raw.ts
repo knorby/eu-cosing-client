@@ -11,7 +11,20 @@
 /** Search clause shapes accepted by the EU Search query DSL. */
 export type CosingSearchClause =
   | { term: Record<string, string> }
-  | { terms: Record<string, string[]> };
+  | { terms: Record<string, string[]> }
+  /**
+   * Wildcard text query, optionally scoped to fields. This is the clause
+   * the official web app uses for CAS/EC lookup: a `*value*` query over
+   * the `casNo`/`ecNo` fields (the fuzzy `text` URL parameter does not
+   * index identifier fields at all).
+   */
+  | {
+      text: {
+        query: string;
+        fields?: string[];
+        analyzeWildcard?: boolean;
+      };
+    };
 
 export interface CosingSortClause {
   field: string;
