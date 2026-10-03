@@ -1,4 +1,33 @@
 import type { FetchLike } from "../src/http";
+import type { MultipartPart } from "../src/multipart";
+
+/** Parses a multipart body back into parts (test-only inverse serializer). */
+export function parseMultipart(
+  body: string,
+  boundary: string,
+): MultipartPart[] {
+  const delimiter = `--${boundary}`;
+  const chunks = body.split(delimiter).slice(1, -1);
+  return chunks.map((chunk) => {
+    const separator = "\r\n\r\n";
+    const headerEnd = chunk.indexOf(separator);
+    const headers = chunk.slice(0, headerEnd);
+    const value = chunk
+      .slice(headerEnd + separator.length)
+      .replace(/\r\n$/u, "");
+    const name = /name="([^"]+)"/u.exec(headers)?.[1];
+    const contentType = /content-type:\s*([^\r\n]+)/iu.exec(headers)?.[1];
+    if (!name) throw new Error("missing name in test parser");
+    return { name, value, contentType };
+  });
+}
+
+/** Extracts the boundary from a multipart content-type header value. */
+export function boundaryOf(contentType: string): string {
+  const match = /boundary=(.+)$/u.exec(contentType);
+  if (!match) throw new Error("no boundary in content type");
+  return match[1];
+}
 
 export interface RecordedCall {
   url: string;
