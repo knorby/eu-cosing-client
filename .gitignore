@@ -1,0 +1,29 @@
+# --- OS junk ---
+.DS_Store
+Thumbs.db
+
+# --- Editors ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# --- Node.js ---
+node_modules/
+dist/
+coverage/
+*.tgz
+
+# --- npm ---
+# .npmrc is tracked (no auth tokens in it); uncomment if you add a local .npmrc
+# with auth credentials:
+# .npmrc
+
+# --- Husky internals ---
+.husky/_/
+
+# --- Misc ---
+*.log
+*.bak
+.env*
