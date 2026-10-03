@@ -44,6 +44,10 @@ export interface CosingRawMetadata {
   itemType?: string[];
   /** Ingredient function names assigned by the source. */
   functionName?: string[];
+  /** Function vocabulary ID (function records). */
+  functionId?: string[];
+  /** Function vocabulary definition text (function records). */
+  functionDescription?: string[];
   /** Annex numbers this entry appears in (substance records). */
   annexNo?: string[];
   /** Reference number within an annex (may be numeric or lettered parts). */

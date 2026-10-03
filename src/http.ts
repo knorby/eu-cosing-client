@@ -7,7 +7,6 @@ import {
 import {
   CosingApiError,
   CosingConfigError,
-  CosingError,
   CosingNetworkError,
   CosingParseError,
   CosingTimeoutError,
