@@ -27,3 +27,7 @@ coverage/
 *.log
 *.bak
 .env*
+
+# --- Local planning/notes (not committed on this project) ---
+.superpowers/
+docs/superpowers/

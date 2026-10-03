@@ -1,4 +1,9 @@
+import { readFileSync } from "node:fs";
 import { defineConfig } from "tsup";
+
+const pkg = JSON.parse(
+  readFileSync(new URL("./package.json", import.meta.url), "utf8"),
+);
 
 // Declaration files are emitted by `tsc --emitDeclarationOnly` (see the
 // "build" script in package.json), NOT by tsup's `dts: true`. tsup's dts
@@ -13,4 +18,7 @@ export default defineConfig({
   clean: true,
   outDir: "dist",
   target: "es2022",
+  // PKG_VERSION is consumed in src/version.ts as the default User-Agent
+  // version. Only this build-time config file may touch node: modules.
+  define: { PKG_VERSION: JSON.stringify(pkg.version) },
 });

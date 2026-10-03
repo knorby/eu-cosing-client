@@ -2,8 +2,11 @@
 
 Instructions and steering for AI coding agents working in this repository.
 
-This is a TypeScript starter template for universal npm packages (Node, React
-Native, and more). Customize per project and keep this file updated as
+This is `@knorby/eu-cosing-client`, a universal TypeScript client for the
+European Commission's CosIng cosmetic ingredient database. It must remain
+usable from Node and React Native/Expo consumers: no Node-only builtins in
+the core runtime (`node:*`, `fs`, `path`, …), injectable `fetch`, and the
+only runtime dependency is `papaparse`. Keep this file updated as
 conventions evolve.
 
 ---

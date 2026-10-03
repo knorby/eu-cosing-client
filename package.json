@@ -1,8 +1,17 @@
 {
-  "name": "repo-template-typescript",
+  "name": "@knorby/eu-cosing-client",
   "version": "0.0.0",
-  "description": "A TypeScript starter template for universal npm packages (Node, React Native, and more).",
+  "description": "A universal TypeScript client for the European Commission's CosIng cosmetic ingredient database.",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/knorby/eu-cosing-client.git"
+  },
+  "bugs": {
+    "url": "https://github.com/knorby/eu-cosing-client/issues"
+  },
+  "homepage": "https://github.com/knorby/eu-cosing-client#readme",
+  "author": "Kali Norby (https://github.com/knorby)",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -39,6 +48,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:live": "COSING_LIVE_TESTS=1 vitest run tests/live.test.ts",
     "release": "npm run build && changeset publish",
     "prepare": "husky"
   },
@@ -50,12 +60,16 @@
       "biome check --no-errors-on-unmatched --files-ignore-unknown=true"
     ]
   },
+  "dependencies": {
+    "papaparse": "^5.5.3"
+  },
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",
     "@changesets/cli": "^3.0.3",
     "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^21.2.2",
     "@types/node": "^26.6.3",
+    "@types/papaparse": "^5.3.16",
     "@vitest/coverage-v8": "^5.0.2",
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",

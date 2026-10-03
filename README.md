@@ -1,85 +1,168 @@
-# repo-template-typescript
+# @knorby/eu-cosing-client
 
-A TypeScript starter template for universal npm packages (Node, React Native,
-and more) with dual ESM/CJS output, Biome linting/formatting, Vitest testing,
-Changesets versioning, and security-focused publishing defaults.
+A universal TypeScript client for the European Commission's **CosIng**
+(**Cos**metic **Ing**redient) database — cosmetic ingredient identity
+(INCI/CAS/EC), functions, and the regulatory Annexes of Regulation (EC) No
+1223/2009, for Node tools and Expo/React Native apps.
 
-<!-- TODO: Replace project name and description above with project-specific values. -->
+> **This library is unofficial and not affiliated with, endorsed by, or
+> supported by the European Commission or the European Union.** CosIng is an
+> informative, non-binding reference database: inclusion in CosIng does not
+> establish that an ingredient is approved for cosmetic use, and the data
+> this client returns is **not medical advice**. Only Regulation (EC) No
+> 1223/2009 and its Annexes — not CosIng — establish whether and under what
+> conditions a substance may be used in cosmetic products. Always consult
+> the operative legislation and qualified professionals before making
+> decisions based on this data.
 
-## What's included
+## About the data source
 
-- **`tsup`** — zero-config build tool producing dual ESM + CJS output with
-  TypeScript declaration files (`.d.ts`).
-- **`Biome`** — single-tool linter + formatter (replaces ESLint + Prettier;
-  10-100x faster).
-- **`Vitest`** — fast test runner with native ESM and TypeScript support.
-- **`Changesets`** — versioning and changelog management (decoupled from
-  merges).
-- **`Husky` + `lint-staged`** — pre-commit hooks for Biome (lint + format
-  staged files).
-- **`commitlint`** — enforces [conventional commits](https://www.conventionalcommits.org/).
-- **`pre-commit`** — file hygiene (whitespace, EOL, YAML/JSON validation),
-  secret scanning (gitleaks + TruffleHog), shellcheck, and
-  `no-commit-to-branch` protection.
-- **GitHub Actions** — CI runs lint, typecheck, build, test, and `npm audit`
-  on every push/PR, plus the pre-commit suite (`pre-commit run --all-files`).
-  A release workflow (staged at `workflow-templates/release.yml`, inactive
-  until moved into `.github/workflows/`) publishes via trusted publishing
-  (OIDC — no npm tokens).
-- **Security defaults** — `.npmrc` blocks dependency `postinstall` scripts,
-  `package.json` ships with provenance attestation enabled, `files` field
-  whitelists only `dist/` + docs + `LICENSE`.
+[CosIng](https://single-market-economy.ec.europa.eu/sectors/cosmetics/cosmetic-ingredient-database_en)
+is the European Commission's cosmetic ingredient database. It contains
+ingredient names and CAS/EC identifiers, ingredient functions, chemical
+descriptions, scientific opinions (SCCS), and the restricted/prohibited
+substance lists from the Annexes of the Cosmetics Regulation. Entries are
+marked current or historical (status), and the database is updated
+regularly.
 
-## Using this template
+**With gratitude to the European Commission** for publishing and maintaining
+CosIng and for making its data available for reuse. EU-owned content on the
+Commission's websites is generally licensed under
+[CC BY 4.0](https://commission.europa.eu/legal-notice_en) — reuse is
+permitted with appropriate credit and indication of changes; asset-specific
+notices and exclusions may apply. Verify the current reuse notice before
+redistributing CosIng-derived data. This client's *software* is Apache-2.0
+and does not relicense the upstream data.
 
-1. Rename the package: update `name` and `description` in `package.json`.
-2. Reset `version` and clear `CHANGELOG.md`.
-3. Set `repository`, `author`, `bugs`, and `homepage` in `package.json`
-   (provenance attestation requires `repository`).
-4. Update `.github/CODEOWNERS` with your GitHub username, the copyright line
-   in `LICENSE`, and replace `src/`, `tests/`, and examples with your code.
-5. Delete scaffolding you don't need: the ADR template in `docs/README.md`
-   (and the empty `docs/decisions/`), `CONTRIBUTING.md` (optional), and this
-   section.
-6. Set up publishing: move the staged release workflow into place
-   (`git mv workflow-templates/release.yml .github/workflows/release.yml`),
-   then see [Versioning and publishing](#versioning-and-publishing).
+## Features
 
-## Prerequisites
+- **Guided, fully typed API** — search ingredients by free text or exact
+  INCI/CAS/EC, retrieve records by stable source ID, browse the ingredient
+  function vocabulary, and acquire + parse the Annex II–VI regulatory
+  exports as structured entries.
+- **Two layers** — curated typed projections (`CosingIngredient`,
+  `CosingFunction`, `AnnexEntry`, …) plus a raw source-native access path
+  for everything else.
+- **Regulatory semantics preserved** — Annex II prohibition, Annex III
+  conditional restriction, and unknown status stay distinct; concentration
+  bases, conditions, warnings, and SCCS references are kept verbatim. No
+  `banned: boolean` flattening, no invented fields.
+- **Universal runtime** — works in Node ≥ 18, browsers (where CORS allows),
+  and React Native/Expo; injectable `fetch`; the only runtime dependency is
+  [`papaparse`](https://www.papaparse.com/) for the annex CSV exports.
+- **Predictable errors** — typed error taxonomy separating timeouts, network
+  failures, HTTP/API errors, parse failures, and configuration problems;
+  empty results are empty arrays, never errors.
+- **Provenance on every record** — source ID, source link, and retrieval
+  time; source-supplied update dates are preserved and never replaced.
 
-- **Node.js 24+** (use [nvm](https://github.com/nvm-sh/nvm) or
-  [fnm](https://github.com/Schniz/fnm); this repo includes an `.nvmrc`).
-- **npm** (bundled with Node).
-- **pre-commit** — `pipx install pre-commit` or `brew install pre-commit`.
-- **gitleaks** — `brew install gitleaks` (secret scanner for pre-commit).
-- **Go toolchain** — `brew install go` (required once for the TruffleHog hook
-  build).
-
-## Getting started
+## Install
 
 ```bash
-# 1. Clone the repo (or use it as a template on GitHub)
-git clone <repo-url>
-cd <repo-name>
-
-# 2. Use the correct Node version
-nvm use              # or: fnm use
-
-# 3. Install dependencies
-npm install
-
-# 4. Set up Husky hooks (prepare script is blocked by .npmrc ignore-scripts)
-npx husky
-
-# 5. Install pre-commit hooks (file hygiene + secret scanning)
-pre-commit install
-
-# 6. Run all hooks against all files to verify
-pre-commit run --all-files
+npm install @knorby/eu-cosing-client
 ```
 
-The first `pre-commit run` installs all hook environments and builds
-TruffleHog from source (a few minutes). Subsequent runs are cached and fast.
+## Quick start
+
+```ts
+import { CosingClient } from "@knorby/eu-cosing-client";
+
+const client = new CosingClient({
+  // Required for search: an EU Search API key (see "API keys" below).
+  apiKey: process.env.COSING_API_KEY,
+});
+
+// Free-text search (fuzzy) — 17 retinol-ish results:
+const fuzzy = await client.ingredients.search({ text: "retinol" });
+
+// Exact INCI match — 1 result:
+const exact = await client.ingredients.search({ inciName: "RETINOL" });
+
+// Retrieve by stable CosIng substance ID:
+const retinol = await client.ingredients.get("37479");
+
+// Functions assigned by the source, with vocabulary definitions:
+const fns = await client.ingredients.getFunctions("37479");
+const vocabulary = await client.functions.listAll();
+
+// Regulatory annexes (no API key needed):
+const annexII = await client.annexes.get("II");
+annexII.entries[0]; // { kind: "prohibited", referenceNumber: 1, casNumbers: [...], ... }
+const annexIII = await client.annexes.get("III"); // kind: "restricted"
+```
+
+Search returns candidates with match metadata, so ambiguity is preserved:
+
+```ts
+const results = await client.ingredients.search({ text: "retinol" });
+results.items[0].matchedOn; // "text" | "inciName" | "casNo" | ...
+results.items[0].exact; // boolean — exact field match vs fuzzy/derived
+```
+
+## API keys
+
+Ingredient search uses the Commission's generic **EU Search** service, which
+requires an API key. The public CosIng web app ships one in its public
+browser configuration; **the terms under which third parties may reuse that
+key are not documented**, so this client never hardcodes it. Pass your own
+key via `new CosingClient({ apiKey })`. Annex export methods work without a
+key.
+
+Requests embed the key in the URL query string; the client redacts it from
+every error message and diagnostic it produces, but treat the key as
+sensitive when logging raw traffic.
+
+## Universal runtime notes
+
+| Runtime | Support |
+| --- | --- |
+| Node ≥ 18 | ✅ full |
+| React Native / Expo | ✅ full (inject `fetch` if your runtime lacks a global; RN's hermes provides one) |
+| Browsers | ⚠️ subject to upstream CORS — browser failure is not proof of native failure |
+
+- The client uses global `fetch`, `AbortController`, and `TextEncoder`, and
+  injects `fetch` where needed: `new CosingClient({ fetch: myFetch })`.
+- The search API requires `multipart/form-data`; rather than relying on
+  React Native's historically flaky `FormData`/`Blob` upload behavior, the
+  client serializes multipart bodies manually to an `ArrayBuffer` — this is
+  invisible to consumers.
+- The core runtime imports no Node builtins (`node:*`, `fs`, `path`, …).
+
+## Pagination
+
+Search methods accept `page` and `pageSize` and return `{ items, page,
+pageSize, total, hasMore }`. For bounded bulk iteration, every search method
+has an `*All` variant returning an async generator that yields individual
+records, terminating on short pages or `total`, with a hard safety cap.
+
+Annex exports are complete single-file CSVs — no pagination.
+
+## Known source quirks
+
+- **`text` vs `term` matching** — the `text` parameter is fuzzy full-text
+  search; exact criteria (INCI, CAS, EC, status, function) are translated to
+  the API's `term` filters. `ingredients.search({ casNo })` handles the
+  split of multi-value identifier strings client-side and reports what
+  matched.
+- **Multi-value identifier strings** — CAS/EC numbers for an entry are
+  stored as one `" / "`-joined string (e.g. `"68-26-8 / 11103-57-4"`). The
+  curated types split these into arrays and preserve the raw string.
+- **Array-valued metadata** — every search metadata field is an array in the
+  source; curated types unwrap singletons but the raw layer preserves the
+  shape 1:1.
+- **Export endpoints only support GET** — HEAD requests return 405.
+- **A private JSON API exists but requires internal EC auth** — this client
+  uses only the public search + export surfaces.
+
+## Testing
+
+Deterministic offline tests run in CI with injected fetch mocks and
+captured fixtures. Live smoke tests against the real endpoints are
+opt-in and never run in CI:
+
+```bash
+COSING_LIVE_TESTS=1 COSING_API_KEY=<key> npm run test:live
+```
 
 ## Development
 
@@ -90,141 +173,15 @@ TruffleHog from source (a few minutes). Subsequent runs are cached and fast.
 | `npm run lint` | Lint + formatting check with Biome (read-only) |
 | `npm run format` | Format with Biome (writes changes) |
 | `npm run check` | Lint + format in one pass (writes changes) |
-| `npm run typecheck` | Type-check with `tsc --noEmit` |
+| `npm run typecheck` | Type-check `src/` + `tests/` with `tsc` (no emit) |
 | `npm test` | Run tests once (Vitest) |
-| `npm run test:watch` | Run tests in watch mode |
-| `npm run test:coverage` | Run tests with coverage reporting |
-
-### Project structure
-
-```
-src/
-  index.ts              # package entry point (add exports here)
-tests/
-  index.test.ts         # test files (*.test.ts)
-dist/                   # build output (gitignored, generated by tsup)
-.changeset/             # changeset files (versioning)
-.github/workflows/      # CI workflows
-workflow-templates/     # staged workflows (inactive until moved into .github/workflows/)
-docs/decisions/          # architecture decision records (ADRs)
-```
-
-## Testing
-
-Tests use [Vitest](https://vitest.dev/) and live in `tests/`. Add test files
-as `*.test.ts`. The CI workflow (`.github/workflows/tests.yml`) runs the full
-suite on every push to `main` and on PRs:
-
-- Biome (lint + format check)
-- TypeScript type-check (`tsc --noEmit`)
-- Build (`tsup`)
-- Tests (`vitest run`)
-- Vulnerability scan (`npm audit --audit-level=moderate`)
-
-A second workflow (`.github/workflows/pre-commit.yml`) runs the pre-commit
-suite (file hygiene + secret scanning) with `SKIP=no-commit-to-branch`.
-
-## Versioning and publishing
-
-This repo uses [Changesets](https://github.com/changesets/changesets) for
-versioning. Versioning is decoupled from merges — you can merge multiple PRs
-and release them all at once.
-
-### Adding a changeset
-
-```bash
-npx changeset
-```
-
-Select patch/minor/major, write a summary. Commit the generated
-`.changeset/*.md` alongside your code.
-
-### Releasing
-
-The release workflow ships **staged** at `workflow-templates/release.yml` and
-is inactive in this template (GitHub only runs workflows from
-`.github/workflows/`). To enable it:
-
-```bash
-git mv workflow-templates/release.yml .github/workflows/release.yml
-```
-
-Once active, the flow is automated. The release workflow runs on every push
-to `main`: with no pending changesets it is a no-op; with changesets, it
-opens a "Version Packages" PR (`changeset version` bumps `package.json`,
-updates `CHANGELOG.md`, and removes the consumed changesets). Merging that
-PR publishes to npm, tags the release, and creates a GitHub Release.
-Publishing uses OIDC trusted publishing — no npm tokens are stored as
-secrets, and `id-token: write` is scoped to the publish job only.
-
-For a manual release: `npx changeset version`, then `npm run release`.
-
-#### One-time setup (trusted publishing)
-
-1. Repo **Settings → Actions → General → Workflow permissions**: select
-   **Read and write permissions**, and check **Allow GitHub Actions to
-   create and approve pull requests**.
-2. Repo **Settings → Environments**: create an environment named `release`.
-3. On npmjs.com, add a trusted publisher for the package. Values must match
-   exactly: this repository, workflow filename `release.yml`, environment
-   `release`.
-4. Enable npm 2FA: `npm profile enable-2fa auth-and-writes`.
-
-#### First publish (manual)
-
-npm requires a package to exist before it can link a trusted publisher, so
-the very first publish is manual:
-
-```bash
-npm login
-npm pkg delete publishConfig.provenance   # provenance needs CI + public repo
-npm run release                           # build + changeset publish
-npm pkg set publishConfig.provenance=true
-git push origin main --follow-tags
-gh release create vX.Y.Z --notes-from-tag
-```
-
-### Publishing security
-
-- **Trusted publishing (OIDC)**: the release workflow publishes with an OIDC
-  token minted by GitHub Actions — no npm tokens involved. This is compatible
-  with 2FA (`npm profile enable-2fa auth-and-writes`).
-- **Provenance**: publishes with provenance attestation (cryptographic link
-  from package to commit + workflow). Requires a public repo and publishing
-  from CI; the manual first publish temporarily disables it.
-- **Scoped names**: use `@yourscope/package` to prevent dependency confusion;
-  `publishConfig.access: "public"` is set because scoped packages default to
-  restricted visibility.
-- **`.npmrc`**: `ignore-scripts=true` blocks dependency `postinstall`
-  scripts. This also blocks the `prepare` script, so run `npx husky`
-  after `npm install` to set up hooks (or use
-  `npm install --ignore-scripts=false`).
+| `npm run test:live` | Run live smoke tests (requires `COSING_API_KEY`) |
+| `npx changeset` | Create a changeset (required for changes affecting published output) |
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
 
-## Customizing
-
-- **Package name**: update `name` in `package.json`.
-- **Build targets**: adjust `tsup.config.ts` (format, target, entry points).
-- **TypeScript config**: modify `tsconfig.json` (target, module, strictness).
-- **Biome rules**: edit `biome.json` (formatter style, linter rules).
-- **Biome → ESLint + Prettier**: if you need a larger rule ecosystem, remove
-  `@biomejs/biome` from devDependencies, install ESLint + Prettier +
-  `eslint-config-prettier`, create `eslint.config.mjs` (flat config) and
-  `.prettierrc`, and update the `lint-staged` config in `package.json`.
-- **Branch protection**: `no-commit-to-branch` is a local guard only. Also
-  enable GitHub branch protection rules on `main` (Settings → Branches).
-- **CODEOWNERS**: update `.github/CODEOWNERS` with your GitHub username.
-
-## Documentation
-
-- [`AGENTS.md`](AGENTS.md) — instructions and steering for AI coding agents.
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) — development workflow, commit
-  conventions, publishing.
-- [`docs/`](docs/) — design notes, architecture, and decision records.
-
 ## License
 
-[Apache-2.0](LICENSE) © Kali Norby ([@knorby](https://github.com/knorby))
-
-<!-- TODO: Add npm version / downloads / license badges once published. -->
+[Apache-2.0](LICENSE) © Kali Norby ([@knorby](https://github.com/knorby)).
+CosIng data is © the European Commission (see the reuse notice above); this
+license covers the client software only.
