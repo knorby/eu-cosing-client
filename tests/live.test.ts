@@ -94,6 +94,19 @@ describe("live smoke — search (requires COSING_API_KEY)", () => {
     },
   );
 
+  itSearch(
+    "resolves an identified-ingredient substance ID to a substance record",
+    { timeout: TIMEOUT },
+    async () => {
+      const client = new CosingClient({ apiKey: API_KEY });
+      const substance = await client.substances.get("104250");
+      expect(substance?.matchedOn).toBe("substanceId");
+      expect(substance?.exact).toBe(true);
+      expect(substance?.item.refNo).toBe("376");
+      expect(substance?.item.annexNumbers).toContain("III");
+    },
+  );
+
   itSearch("lists the function vocabulary", { timeout: TIMEOUT }, async () => {
     const client = new CosingClient({ apiKey: API_KEY });
     const page = await client.functions.list();

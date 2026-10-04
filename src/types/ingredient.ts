@@ -100,7 +100,10 @@ export interface CosingRecordBase {
 /** Inventory ingredient record (itemType "ingredient"). */
 export interface CosingIngredient extends CosingRecordBase {
   itemType: "ingredient";
-  /** CosIng substance IDs this ingredient is identified as (annex links). */
+  /**
+   * CosIng substance IDs this ingredient is identified as (annex links).
+   * Resolve them to records with `client.substances.get(id)`.
+   */
   identifiedIngredientIds: string[];
   /** Annex numbers the linked substance entries appear in. */
   annexNumbers: string[];

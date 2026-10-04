@@ -84,6 +84,13 @@ const retinol = await client.ingredients.get("37479");
 // Functions assigned by the source, with vocabulary definitions:
 const fns = await client.ingredients.getFunctions("37479");
 
+// Resolve annex-linked substances (e.g. CMR entries) to full records:
+const linked = retinol?.item.identifiedIngredientIds ?? [];
+for (const substanceId of linked) {
+  const substance = await client.substances.get(substanceId);
+  // substance?.item.refNo, .annexNumbers, .wordingOfConditions, ...
+}
+
 // The full function vocabulary (async generator):
 for await (const fn of client.functions.listAll()) {
   console.log(fn.item.name);

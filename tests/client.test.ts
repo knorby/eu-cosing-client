@@ -310,6 +310,34 @@ describe("substances namespace", () => {
     expect(body).toContain('"term":{"annexNo":"III"}');
     expect(body).toContain('"term":{"refNo":"376"}');
   });
+
+  it("gets a substance record by stable substance ID", async () => {
+    const { client, fetch } = clientWith(() =>
+      Response.json(
+        searchResponse(1, [
+          searchResult({
+            itemType: ["substance"],
+            substanceId: ["104250"],
+            annexNo: ["III"],
+            refNo: ["376"],
+          }),
+        ]),
+      ),
+    );
+    const match = await client.substances.get("104250");
+    expect(match?.matchedOn).toBe("substanceId");
+    expect(match?.exact).toBe(true);
+    expect(match?.item.itemType).toBe("substance");
+    expect(match?.item.refNo).toBe("376");
+    const body = String(fetch.calls[0].init?.body);
+    expect(body).toContain('"term":{"itemType":"substance"}');
+    expect(body).toContain('"term":{"substanceId":"104250"}');
+  });
+
+  it("returns null when a substance get finds nothing", async () => {
+    const { client } = clientWith(() => Response.json(searchResponse(0, [])));
+    expect(await client.substances.get("nope")).toBeNull();
+  });
 });
 
 describe("annexes namespace", () => {

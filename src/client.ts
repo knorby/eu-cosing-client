@@ -371,6 +371,28 @@ export class SubstancesNamespace {
     );
   }
 
+  /**
+   * Fetches a single substance record by its stable CosIng substance ID —
+   * the IDs carried on `CosingIngredient.identifiedIngredientIds`. Returns
+   * `null` when the source has no such record (empty is not an error).
+   */
+  async get(
+    substanceId: string,
+    options: RequestOptions = {},
+  ): Promise<CosingMatch<CosingSubstance> | null> {
+    const response = await this.transport.search({
+      clauses: [{ term: { itemType: "substance" } }, { term: { substanceId } }],
+      signal: options.signal,
+    });
+    const first = response.results[0];
+    if (!first) return null;
+    return toSubstance(first, {
+      retrievedAt: new Date().toISOString(),
+      matchedOn: "substanceId",
+      exact: true,
+    });
+  }
+
   async *searchAll(
     criteria: SubstanceSearchCriteria,
     options: SearchAllOptions = {},
