@@ -1,27 +1,14 @@
 name: Release
 
-# Publishes to npm via OIDC trusted publishing — no NPM_TOKEN secret needed.
+# Disabled until the repository variable NPM_RELEASE_ENABLED is set to
+# "true" AFTER the manual 0.1.0 publish and trusted-publisher setup.
+# See docs/releasing.md. Publishing uses OIDC, without a stored npm token.
 #
-# STAGED WORKFLOW: this file lives in `workflow-templates/` and is INERT in
-# the template repo. GitHub only picks up workflows from
-# `.github/workflows/`. To activate it in a repo created from this template:
-#
-#   git mv workflow-templates/release.yml .github/workflows/release.yml
-#
-# Prerequisites (one-time setup, see README "Releasing"):
-#   - A GitHub environment named `release` (repo Settings → Environments).
-#   - A trusted publisher configured on npmjs.com for this package pointing
-#     at this repository, workflow path `.github/workflows/release.yml`, and
-#     environment `release` (all must match exactly).
-#   - npm >= 11.5.1 for OIDC. The publish job pins Node 24 (which ships a
-#     compatible npm) and upgrades to npm@latest anyway, because Node 22's
-#     bundled npm 10.x cannot perform OIDC token exchange.
-#
-# Runs on every push to main. The `select-mode` job inspects repo state and
+# Once enabled, runs on pushes to main. The `select-mode` job inspects state and
 # picks what happens next:
-#   - changesets found          -> `version` job runs `changeset version`
-#     (bumps package.json, updates CHANGELOG.md, deletes the consumed
-#     changesets) and opens or updates a "Version Packages" pull request.
+#   - changesets found          -> `version` job runs `version:packages`
+#     (bumps package.json, updates CHANGELOG.md and package-lock.json, deletes
+#     consumed changesets) and opens or updates a "Version Packages" pull request.
 #     Merging that PR triggers this workflow again, landing in publish mode.
 #   - new version not yet on
 #     npm (no changesets left) -> `pack` job builds and packs the packages;
@@ -42,11 +29,13 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions: {}
 
 jobs:
   select-mode:
+    if: github.ref == 'refs/heads/main' && vars.NPM_RELEASE_ENABLED == 'true'
     name: Select Changesets mode
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -62,10 +51,11 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 24
+          package-manager-cache: false
       - run: npm ci
       - name: Select Changesets mode
         id: select-mode
-        uses: changesets/action/select-mode@v2
+        uses: changesets/action/select-mode@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
 
   version:
     name: Version Packages PR
@@ -83,11 +73,13 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-          cache: npm
+          package-manager-cache: false
       - run: npm ci
       - name: Create or update the Version Packages pull request
         id: version
-        uses: changesets/action/version@v2
+        uses: changesets/action/version@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+        with:
+          script: npm run version:packages
 
   pack:
     name: Build and pack packages
@@ -106,12 +98,17 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-          cache: npm
+          package-manager-cache: false
       - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm audit --audit-level=moderate
       - run: npm run build
+      - run: npm pack --dry-run
       - name: Pack packages for publishing
         id: pack
-        uses: changesets/action/pack@v2
+        uses: changesets/action/pack@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
         with:
           publish-plan-artifact-id: ${{ needs.select-mode.outputs.publish-plan-artifact-id }}
 
@@ -131,12 +128,12 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-          cache: npm
+          package-manager-cache: false
       # Node 24's bundled npm still may not satisfy npm >= 11.5.1 for OIDC.
       - name: Upgrade npm for OIDC trusted publishing
         run: npm install -g npm@latest
       - run: npm ci
       - name: Publish packed packages
-        uses: changesets/action/publish@v2
+        uses: changesets/action/publish@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
         with:
           pack-dir-artifact-id: ${{ needs.pack.outputs.pack-dir-artifact-id }}
