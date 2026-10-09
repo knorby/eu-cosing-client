@@ -16,8 +16,8 @@ workflow, and how to publish releases.
 ## Getting started
 
 ```bash
-git clone <repo-url>
-cd <repo-name>
+git clone https://github.com/knorby/eu-cosing-client.git
+cd eu-cosing-client
 nvm use              # or: fnm use
 npm install          # installs deps (prepare blocked by .npmrc ignore-scripts)
 npx husky            # sets up Husky hooks (run after npm install)
@@ -37,6 +37,8 @@ pre-commit install   # sets up pre-commit hooks for file hygiene + secrets
 | `npm test` | Run tests once (Vitest) |
 | `npm run test:watch` | Run tests in watch mode |
 | `npm run test:coverage` | Run tests with coverage reporting |
+| `npm run test:live` | Run opt-in CosIng smoke tests; search tests require `COSING_API_KEY` |
+| `npm run version:packages` | Consume changesets and refresh package-lock metadata |
 
 ## Git hooks
 
@@ -99,33 +101,22 @@ Select the bump type (patch/minor/major) and write a short summary. A new
 
 ### Releasing
 
-**Automated release (default):** the release workflow ships **staged** at
-`workflow-templates/release.yml` — GitHub only runs workflows from
-`.github/workflows/`, so it is inactive in this template. Activate it with:
+Follow [docs/releasing.md](docs/releasing.md) for the initial local 0.1.0
+publish, GitHub/npm setup, and later releases. The installed workflow at
+`.github/workflows/release.yml` is disabled until the repository variable
+`NPM_RELEASE_ENABLED` equals `true` and only runs release jobs on `main`.
 
-```bash
-git mv workflow-templates/release.yml .github/workflows/release.yml
-```
+Once enabled, Changesets selects one of three modes:
 
-Once active, it runs on every push to `main`. With no pending changesets it
-is a no-op; with changesets, it opens a "Version Packages" PR (`changeset
-version` bumps `package.json`, updates `CHANGELOG.md`, and removes the
-consumed changesets). Merging that PR publishes to npm, tags the release,
-and creates a GitHub Release.
+- Pending changesets: open/update a version PR using `npm run version:packages`,
+  which updates the version, changelog, and lockfile together.
+- No changesets and an unpublished version: run quality gates, build, pack,
+  and publish through OIDC; create the tag and GitHub release.
+- No changesets and the current version already published: no-op.
 
-Prerequisites (one-time, repository owner): a `release` environment in repo
-Settings → Environments; workflow permissions set to Read and write with PR
-creation allowed; a trusted publisher configured on npmjs.com (repository,
-workflow filename `release.yml`, environment `release` — must match exactly);
-and npm 2FA (`npm profile enable-2fa auth-and-writes`). The very first
-publish is manual — see the README "First publish (manual)" section.
-
-**Manual release (if needed):**
-```bash
-npx changeset version    # bumps package.json + generates CHANGELOG.md
-npm run release          # builds + publishes to npm
-git add . && git commit -m "chore: release" && git push
-```
+The initial release is already versioned at 0.1.0. Its included work is in
+`CHANGELOG.md`, with no pending bump. Do not run `version:packages` to seed
+that version; use the guide's explicit tarball publish instead.
 
 ### Before publishing, always verify
 
@@ -140,12 +131,11 @@ npm pack --dry-run    # verify only dist/, README.md, CHANGELOG.md, LICENSE
   token minted by GitHub Actions; there are no npm tokens (no `NPM_TOKEN`
   secret). Compatible with 2FA (`npm profile enable-2fa auth-and-writes`)
   because no token needs an OTP.
-- **Provenance** — this repo publishes with `--provenance` (cryptographic
-  attestation linking the published package to the commit + workflow).
-  Requires a public repo and publishing from CI; the manual first publish
-  temporarily removes `publishConfig.provenance`.
-- **Scoped names** — use `@yourscope/package` names to prevent dependency
-  confusion attacks; `publishConfig.access: "public"` is set because scoped
+- **Provenance** — `publishConfig.provenance: true` enables attestation for
+  CI releases from the public repository. Override with `--provenance=false`
+  only for the initial local publish; leave the committed setting intact.
+- **Scoped name** — `@knorby/eu-cosing-client` uses the owner's namespace;
+  `publishConfig.access: "public"` is set because scoped
   packages default to restricted visibility.
 - **No secrets in the package** — the `files` field in `package.json`
   whitelists only `dist`, `README.md`, `CHANGELOG.md`, and `LICENSE`.

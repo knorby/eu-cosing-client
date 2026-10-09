@@ -49,6 +49,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:live": "COSING_LIVE_TESTS=1 vitest run tests/live.test.ts",
+    "version:packages": "changeset version && npm install --package-lock-only --ignore-scripts",
     "release": "npm run build && changeset publish",
     "prepare": "husky"
   },

@@ -36,9 +36,9 @@ and does not relicense the upstream data.
 
 ## Features
 
-- **Guided, fully typed API** — search ingredients by free text or exact
-  INCI/CAS/EC, retrieve records by stable source ID, browse the ingredient
-  function vocabulary, and acquire + parse the Annex II–VI regulatory
+- **Guided, fully typed API** — search ingredients by free text, exact
+  INCI, or wildcard CAS/EC, retrieve records by stable source ID, browse the
+  ingredient function vocabulary, and acquire + parse the Annex II–VI regulatory
   exports as structured entries.
 - **Two layers** — curated typed projections (`CosingIngredient`,
   `CosingFunction`, `AnnexEntry`, …) plus a raw source-native access path
@@ -98,7 +98,7 @@ for await (const fn of client.functions.listAll()) {
 
 // Regulatory annexes (no API key needed):
 const annexII = await client.annexes.get("II");
-annexII.entries[0]; // { kind: "prohibited", referenceNumber: 1, casNumbers: [...], ... }
+annexII.entries[0]; // { kind: "prohibited", referenceNumber: "1", casNumbers: [...], ... }
 const annexIII = await client.annexes.get("III"); // kind: "restricted"
 ```
 
@@ -128,23 +128,25 @@ sensitive when logging raw traffic.
 | Runtime | Support |
 | --- | --- |
 | Node ≥ 18 | ✅ full |
-| React Native / Expo | ✅ full (inject `fetch` if your runtime lacks a global; RN's hermes provides one) |
+| React Native / Expo | ✅ full (React Native provides global `fetch`; inject it if your environment lacks one) |
 | Browsers | ⚠️ subject to upstream CORS — browser failure is not proof of native failure |
 
-- The client uses global `fetch`, `AbortController`, and `TextEncoder`, and
+- The client uses global `fetch` and `AbortController`, and
   injects `fetch` where needed: `new CosingClient({ fetch: myFetch })`.
 - The search API requires `multipart/form-data`; rather than relying on
   React Native's historically flaky `FormData`/`Blob` upload behavior, the
-  client serializes multipart bodies manually to an `ArrayBuffer` — this is
+  client serializes multipart bodies manually as strings — this is
   invisible to consumers.
 - The core runtime imports no Node builtins (`node:*`, `fs`, `path`, …).
 
 ## Pagination
 
 Search methods accept `page` and `pageSize` and return `{ items, page,
-pageSize, total, hasMore }`. For bounded bulk iteration, every search method
-has an `*All` variant returning an async generator that yields individual
-records, terminating on short pages or `total`, with a hard safety cap.
+pageSize, total, hasMore }`. `ingredients.searchAll`, `substances.searchAll`,
+and `functions.listAll` return async generators yielding individual matches.
+They stop when the source reports no more results (`page * pageSize >= total`)
+or after the hard safety cap of 500 pages. Reaching that cap is not proof
+that the complete inventory was retrieved.
 
 Annex exports are complete single-file CSVs — no pagination.
 
@@ -195,6 +197,15 @@ COSING_LIVE_TESTS=1 COSING_API_KEY=<key> npm run test:live
 | `npx changeset` | Create a changeset (required for changes affecting published output) |
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
+
+## Releasing
+
+See [the release guide](docs/releasing.md) for the ordered manual 0.1.0
+publish and subsequent OIDC releases. The GitHub release workflow is
+installed but disabled until the repository variable `NPM_RELEASE_ENABLED`
+is set to `true`. Keep it disabled until npm is seeded and trusted publishing
+is configured; the initial local publish explicitly disables provenance
+without editing `package.json`.
 
 ## License
 

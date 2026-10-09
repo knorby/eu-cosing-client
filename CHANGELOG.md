@@ -6,7 +6,8 @@
 
 - ebb3b07: Initial release: a universal TypeScript client for the European Commission's CosIng cosmetic ingredient database.
 
-  - Guided, typed API: `ingredients` (fuzzy text / exact INCI / wildcard CAS & EC search, get by substance ID, per-ingredient functions, async-generator pagination), `functions` (vocabulary list/get), `substances` (annex + reference-number search), `annexes` (Annex II–VI CSV export download + parse with explicit regulatory kinds), and a `raw` escape hatch.
+  - Guided, typed API: `ingredients` (fuzzy text / exact INCI / wildcard CAS & EC search, get by substance ID, per-ingredient functions, async-generator pagination), `functions` (vocabulary list/get), `substances` (annex + reference-number search and get by substance ID), `annexes` (Annex II–VI CSV export download + parse with explicit regulatory kinds), and a `raw` escape hatch.
+  - Resolve `CosingIngredient.identifiedIngredientIds` with `client.substances.get(id)`, returning a substance match or `null` when absent.
   - Two transports over one requester: EU Search multipart POST (injectable API key, redacted from all diagnostics) and the open export API (keyless GET).
   - Curated types with split multi-identifier strings, verbatim regulatory text (no `banned: boolean` flattening), source-scoped provenance (ID, link, retrieval time), plus a 1:1 raw layer.
   - Predictable error taxonomy: config / timeout / API / network / parse; empty results are empty, never errors.

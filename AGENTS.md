@@ -84,6 +84,7 @@ scanning). Both are needed for full coverage.
 | `npm run test:watch` | Run tests in watch mode |
 | `npm run test:coverage` | Run tests with coverage reporting |
 | `npm run test:live` | Run live smoke tests against the real CosIng endpoints (requires `COSING_API_KEY`; opt-in, never in CI) |
+| `npm run version:packages` | Consume changesets and refresh lockfile metadata (not for seeding the already-versioned 0.1.0) |
 | `npx changeset` | Create a changeset (required for any change that affects published output) |
 
 ---
@@ -125,54 +126,30 @@ PRs and release them all at once.
 - **Before a PR that changes published output**: run `npx changeset`, select
   bump type (patch/minor/major), write a summary. Commit the generated
   `.changeset/*.md` file alongside the code change.
-- **To release**: `npx changeset version` (bumps `package.json` +
-  `CHANGELOG.md`), then `npm run release` (builds + publishes).
-- **GitHub Actions release** (`workflow-templates/release.yml`): ships
-  **staged** — GitHub only runs workflows from `.github/workflows/`, so this
-  workflow is inert in the template repo (no publish attempts on pushes to
-  `main`). To activate in a repo created from this template:
-  `git mv workflow-templates/release.yml .github/workflows/release.yml`.
-  Once active, it runs on every push to `main` (and can be triggered
-  manually via `workflow_dispatch`, e.g. to retry after a transient publish
-  failure): with no pending changesets
-  it is a no-op. With changesets, it opens a "Version Packages" PR
-  (`changeset version` bumps the version string, updates `CHANGELOG.md`,
-  and removes consumed changesets); merging that PR publishes to npm, tags,
-  and creates a GitHub Release. Publishing uses OIDC trusted publishing — no
-  npm token secrets are involved. Permissions follow the changesets v2
-  sub-action split (`select-mode` → `version` | `pack` → `publish`);
-  `id-token: write` is scoped to the publish job only.
+- **Release operations**: read [docs/releasing.md](docs/releasing.md) before
+  first publishing, configuring trusted publishing, enabling automation, or
+  retrying a failed release. Visibility, publishing, tags, and pushes require
+  explicit user authorization; changing release files does not authorize them.
+- **Versioning**: use `npm run version:packages` to consume changesets and
+  refresh lockfile metadata together. The initial 0.1.0 is already versioned;
+  include its pre-publication fixes in that changelog rather than bumping it.
+- **GitHub Actions release** (`.github/workflows/release.yml`): installed,
+  disabled until `NPM_RELEASE_ENABLED=true` is set as a repository variable.
+  Release jobs also require `main`. Pending changesets select version mode;
+  no changesets with an unpublished version select publish mode; an already
+  published version selects no-op. The pack job runs the full checks and
+  development-dependency audit before building the artifact. Only the publish
+  job has `id-token: write`; Changesets actions are pinned to commit SHAs.
 - **Always verify before publishing**: `npm run build && npm pack --dry-run`
   to confirm only `dist/`, `README.md`, `CHANGELOG.md`, and `LICENSE` are
   included.
 
-### One-time release setup (repository owner)
+### Initial release
 
-0. Activate the staged workflow:
-   `git mv workflow-templates/release.yml .github/workflows/release.yml`.
-1. Repo **Settings → Actions → General → Workflow permissions**: select **Read
-   and write permissions**, and check **Allow GitHub Actions to create and
-   approve pull requests**.
-2. Repo **Settings → Environments**: create an environment named `release`.
-3. On npmjs.com, add a **trusted publisher** for the package. Values must
-   match the workflow exactly: this repository, workflow filename
-   `release.yml`, environment `release`.
-4. Enable npm 2FA: `npm profile enable-2fa auth-and-writes`.
-
-### First publish (manual)
-
-npm requires a package to exist before it can link a trusted publisher
-([npm/cli#8544](https://github.com/npm/cli/issues/8544)), so the very first
-publish is manual:
-
-```bash
-npm login
-npm pkg delete publishConfig.provenance   # provenance needs CI + public repo
-npm run release                           # build + changeset publish
-npm pkg set publishConfig.provenance=true
-git push origin main --follow-tags
-gh release create vX.Y.Z --notes-from-tag
-```
+Keep the release variable unset until the repository is public, the merged
+0.1.0 has been published manually, and npm trusted publishing is configured.
+Follow the ordered runbook in `docs/releasing.md`. The local publish uses
+`--provenance=false`; keep `publishConfig.provenance: true` committed for CI.
 
 ### Release failure quick reference
 
@@ -194,7 +171,7 @@ gh release create vX.Y.Z --notes-from-tag
 - **Provenance** — `publishConfig.provenance: true` in `package.json` enables
   npm provenance attestation (cryptographic link to commit + workflow).
   Provenance requires publishing from CI on a **public** repository; the
-  manual first publish temporarily removes it (see "First publish").
+  manual first publish overrides it on the CLI (see `docs/releasing.md`).
 - **Scoped names** — use `@knorby/package`-style scoped names to prevent
   dependency confusion attacks. Scoped packages default to restricted
   visibility, so `publishConfig.access: "public"` is set.
