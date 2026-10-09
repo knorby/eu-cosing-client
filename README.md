@@ -198,15 +198,6 @@ COSING_LIVE_TESTS=1 COSING_API_KEY=<key> npm run test:live
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
 
-## Releasing
-
-See [the release guide](docs/releasing.md) for the ordered manual 0.1.0
-publish and subsequent OIDC releases. The GitHub release workflow is
-installed but disabled until the repository variable `NPM_RELEASE_ENABLED`
-is set to `true`. Keep it disabled until npm is seeded and trusted publishing
-is configured; the initial local publish explicitly disables provenance
-without editing `package.json`.
-
 ## License
 
 [Apache-2.0](LICENSE) © Kali Norby ([@knorby](https://github.com/knorby)).
