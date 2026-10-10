@@ -27,7 +27,7 @@ export class CosingError extends Error {
   }
 }
 
-/** Thrown when the client is misconfigured (missing `fetch` or API key). */
+/** Thrown when the client is misconfigured (missing `fetch` or an explicitly empty API key). */
 export class CosingConfigError extends CosingError {}
 
 /** Thrown when a request exceeds its configured timeout. */

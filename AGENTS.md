@@ -83,7 +83,8 @@ scanning). Both are needed for full coverage.
 | `npm test` | Run tests once (Vitest) |
 | `npm run test:watch` | Run tests in watch mode |
 | `npm run test:coverage` | Run tests with coverage reporting |
-| `npm run test:live` | Run live smoke tests against the real CosIng endpoints (requires `COSING_API_KEY`; opt-in, never in CI) |
+| `npm run test:live` | Run live smoke tests against the real CosIng endpoints (opt-in, never in CI; `COSING_API_KEY` only overrides the built-in public search key) |
+| `npm run check:search-key` | Compare the built-in public search key in `src/constants.ts` against the CosIng web app's live public config (manual, dev-only) |
 | `npm run version:packages` | Consume changesets and refresh lockfile metadata (not for seeding the already-versioned 0.1.0) |
 | `npx changeset` | Create a changeset (required for any change that affects published output) |
 
