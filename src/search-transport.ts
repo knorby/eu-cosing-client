@@ -36,7 +36,7 @@ export class CosingSearchTransport {
     const key = this.requester.apiKey;
     if (!key) {
       throw new CosingConfigError(
-        "CosIng search requires an EU Search API key. Pass `apiKey` when constructing the client. (The public web app ships one in its public browser configuration; third-party reuse terms are not documented.)",
+        "EU Search API key is empty. Omit `apiKey` to use the built-in public key, or pass a non-empty key.",
       );
     }
     const page = options.page ?? 1;
@@ -78,8 +78,12 @@ export class CosingSearchTransport {
     if (!response.ok) {
       const text = this.requester.redact(await response.text());
       const retryAfterHeader = response.headers.get("retry-after");
+      const rotationHint =
+        response.status === 400 || response.status === 500
+          ? " An invalid or rotated API key can cause this status; if you rely on the built-in public key it may have rotated — run `npm run check:search-key` or pass `apiKey` to override."
+          : "";
       throw new CosingApiError(
-        `CosIng search responded ${response.status} for ${this.requester.redact(url)}`,
+        `CosIng search responded ${response.status} for ${this.requester.redact(url)}${rotationHint}`,
         {
           status: response.status,
           body: text,

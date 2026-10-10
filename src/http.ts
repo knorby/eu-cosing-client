@@ -1,6 +1,7 @@
 import {
   DEFAULT_EXPORT_API_URL,
   DEFAULT_PAGE_SIZE,
+  DEFAULT_SEARCH_API_KEY,
   DEFAULT_SEARCH_API_URL,
   DEFAULT_TIMEOUT_MS,
 } from "./constants";
@@ -26,16 +27,17 @@ export interface RetryOn429Options {
 /**
  * Configuration accepted by `new CosingClient(...)`.
  *
- * - `apiKey` is required for search operations (the Commission's EU Search
- *   service rejects keyless requests); annex export methods work without it.
+ * - `apiKey` defaults to the public EU Search key the CosIng web app ships
+ *   in its browser configuration; search works with no configuration.
+ *   Annex export methods work without it too.
  * - `fetch` injection keeps the client usable in any runtime (tests,
  *   polyfills, React Native fetch shims).
  */
 export interface CosingClientConfig {
   /**
-   * EU Search API key. The public CosIng web app ships one in its public
-   * browser configuration; the terms of third-party reuse are not
-   * documented, so supply your own. Redacted from all diagnostics.
+   * EU Search API key. Defaults to the public key the CosIng web app ships
+   * in its browser configuration; pass a value only to override (e.g. after
+   * a key rotation). Redacted from all diagnostics.
    */
   apiKey?: string;
   /** Override the EU Search endpoint (testing/proxy). */
@@ -60,7 +62,7 @@ export interface RequestOptions {
 }
 
 interface ResolvedConfig {
-  apiKey: string | undefined;
+  apiKey: string;
   searchApiUrl: string;
   exportApiUrl: string;
   timeoutMs: number;
@@ -116,7 +118,7 @@ export class CosingRequester {
     }
     this.fetchFn = fn;
     this.config = {
-      apiKey: config.apiKey,
+      apiKey: config.apiKey ?? DEFAULT_SEARCH_API_KEY,
       searchApiUrl: config.searchApiUrl ?? DEFAULT_SEARCH_API_URL,
       exportApiUrl: config.exportApiUrl ?? DEFAULT_EXPORT_API_URL,
       timeoutMs: config.timeoutMs ?? DEFAULT_TIMEOUT_MS,
@@ -148,7 +150,7 @@ export class CosingRequester {
   }
 
   /** The configured API key (used by the search transport). */
-  get apiKey(): string | undefined {
+  get apiKey(): string {
     return this.config.apiKey;
   }
 

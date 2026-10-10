@@ -1,17 +1,33 @@
 /**
  * Verified CosIng endpoint defaults and limits.
  *
- * These were verified by read-only probing on 2026-10-03. They describe
+ * These were verified by read-only probing on 2026-10-03 (search key
+ * re-verified 2026-10-10, see `DEFAULT_SEARCH_API_KEY`). They describe
  * the public surfaces the web app itself uses; the Commission does not
  * publish an SLA for them. Both can be overridden in client config.
  */
 
 /**
  * The Commission's generic EU Search service, used by the public CosIng web
- * app for all search operations. Requires an API key (query parameter).
+ * app for all search operations. Requires an API key (query parameter);
+ * `DEFAULT_SEARCH_API_KEY` ships the web app's public key.
  */
 export const DEFAULT_SEARCH_API_URL =
   "https://webgate.ec.europa.eu/es/search-api/rest/search";
+
+/**
+ * Public EU Search API key shipped by the CosIng web app in its world-readable
+ * browser configuration (`assets/env-json-config.json`). It is a static
+ * application key, not a per-user credential — there is no registration flow.
+ * Verified 2026-10-10; may rotate on web-app redeploy (run
+ * `npm run check:search-key` to compare against the live value).
+ *
+ * Not a secret: served unauthenticated to every browser. The gitleaks
+ * allowlist below covers this public constant ONLY — never add a real
+ * credential here.
+ */
+// gitleaks:allow — public constant, see doc comment above
+export const DEFAULT_SEARCH_API_KEY = "285a77fd-1257-4271-8507-f0c6b2961203"; // gitleaks:allow
 
 /**
  * Open export API: annex CSV/XLS downloads, ingredient/regulation PDFs.

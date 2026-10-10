@@ -1,0 +1,79 @@
+name: Live smoke
+
+# Scheduled verification against the real CosIng endpoints — the PR/push
+# "Tests" workflow never touches EC infrastructure; this one does, on a
+# schedule, with a handful of requests. Catches two failure classes:
+#   1. upstream behavior changes (live suite assertions)
+#   2. public search-key rotation (check:search-key compares the shipped
+#      constant against the web app's live env-json-config.json)
+# No secrets: search defaults to the built-in public key.
+on:
+  schedule:
+    # Daily at 06:00 UTC — relax to weekly by editing the cron.
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: live-smoke
+  cancel-in-progress: false
+
+# Needs issues: write to open/update the failure-tracking issue.
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  live-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: ".nvmrc"
+          cache: npm
+      - run: npm ci
+      - name: Live smoke tests
+        id: smoke
+        run: npm run test:live
+      - name: Check search key rotation
+        id: keycheck
+        if: always()
+        run: npm run check:search-key
+      - name: Report failure as an issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -eu
+          TITLE="Scheduled CosIng live smoke failed"
+          BODY="$(mktemp)"
+          {
+            echo "The [scheduled live smoke run](${RUN_URL}) failed on $(date -u +%Y-%m-%dT%H:%MZ)."
+            echo
+            echo "- live suite: ${{ steps.smoke.conclusion == 'failure' && 'FAILED' || 'passed' }}"
+            echo "- key check: ${{ steps.keycheck.conclusion == 'failure' && 'DRIFT DETECTED — update DEFAULT_SEARCH_API_KEY in src/constants.ts' || 'passed' }}"
+            echo
+            echo "Key rotation is the most likely cause: see \`docs/decisions/ADR-0001-ship-public-search-api-key.md\`."
+          } > "$BODY"
+          ISSUE="$(gh issue list --search "in:title is:open ${TITLE}" --json number --jq '.[0].number')"
+          if [ -n "${ISSUE}" ]; then
+            gh issue comment "${ISSUE}" --body-file "$BODY"
+          else
+            gh issue create --title "${TITLE}" --body-file "$BODY" --label bug || \
+              gh issue create --title "${TITLE}" --body-file "$BODY"
+          fi
+      - name: Close stale failure issue on recovery
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -eu
+          TITLE="Scheduled CosIng live smoke failed"
+          ISSUE="$(gh issue list --search "in:title is:open ${TITLE}" --json number --jq '.[0].number')"
+          if [ -n "${ISSUE}" ]; then
+            gh issue comment "${ISSUE}" --body "Recovered — the [latest live smoke run](${RUN_URL}) is green again. Closing."
+            gh issue close "${ISSUE}"
+          fi

@@ -462,7 +462,7 @@ export class RawNamespace {
  * Typed client for the European Commission's CosIng database.
  *
  * ```ts
- * const client = new CosingClient({ apiKey: "…" });
+ * const client = new CosingClient();
  * const page = await client.ingredients.search({ text: "retinol" });
  * ```
  *

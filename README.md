@@ -67,10 +67,7 @@ npm install @knorby/eu-cosing-client
 ```ts
 import { CosingClient } from "@knorby/eu-cosing-client";
 
-const client = new CosingClient({
-  // Required for search: an EU Search API key (see "API keys" below).
-  apiKey: process.env.COSING_API_KEY,
-});
+const client = new CosingClient();
 
 // Free-text search (fuzzy) — 17 retinol-ish results:
 const fuzzy = await client.ingredients.search({ text: "retinol" });
@@ -113,15 +110,22 @@ results.items[0].exact; // boolean — exact field match vs fuzzy/derived
 ## API keys
 
 Ingredient search uses the Commission's generic **EU Search** service, which
-requires an API key. The public CosIng web app ships one in its public
-browser configuration; **the terms under which third parties may reuse that
-key are not documented**, so this client never hardcodes it. Pass your own
-key via `new CosingClient({ apiKey })`. Annex export methods work without a
-key.
+requires an API key — but not one you can register for. There is no signup
+or developer portal: the only key is a static, public application key the
+CosIng web app itself ships to every browser in its configuration
+([`env-json-config.json`](https://ec.europa.eu/growth/tools-databases/cosing/assets/env-json-config.json)).
+This client ships that key as a built-in default, so search works with no
+configuration. **The terms under which third parties may reuse that key are
+not documented**; annex export methods need no key at all.
 
-Requests embed the key in the URL query string; the client redacts it from
-every error message and diagnostic it produces, but treat the key as
-sensitive when logging raw traffic.
+The key can rotate when the web app is redeployed. If searches suddenly fail
+with HTTP 400/500, pass a fresh value via `new CosingClient({ apiKey })` —
+maintainers can check for rotation with `npm run check:search-key`, and a
+daily scheduled workflow runs the live test suite plus that check, opening a
+tracking issue if either fails.
+
+Requests embed the key in the URL query string; the client redacts the
+configured key from every error message and diagnostic it produces.
 
 ## Universal runtime notes
 
@@ -179,7 +183,7 @@ captured fixtures. Live smoke tests against the real endpoints are
 opt-in and never run in CI:
 
 ```bash
-COSING_LIVE_TESTS=1 COSING_API_KEY=<key> npm run test:live
+COSING_LIVE_TESTS=1 npm run test:live
 ```
 
 ## Development
@@ -193,7 +197,8 @@ COSING_LIVE_TESTS=1 COSING_API_KEY=<key> npm run test:live
 | `npm run check` | Lint + format in one pass (writes changes) |
 | `npm run typecheck` | Type-check `src/` + `tests/` with `tsc` (no emit) |
 | `npm test` | Run tests once (Vitest) |
-| `npm run test:live` | Run live smoke tests (requires `COSING_API_KEY`) |
+| `npm run test:live` | Run live smoke tests against the real CosIng endpoints (opt-in, never in CI; `COSING_API_KEY` only overrides the built-in public search key) |
+| `npm run check:search-key` | Compare the built-in public search key in `src/constants.ts` against the CosIng web app's live public config (also runs daily in the live-smoke workflow) |
 | `npx changeset` | Create a changeset (required for changes affecting published output) |
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
