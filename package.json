@@ -1,6 +1,6 @@
 {
   "name": "@knorby/eu-cosing-client",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A universal TypeScript client for the European Commission's CosIng cosmetic ingredient database.",
   "license": "Apache-2.0",
   "repository": {
