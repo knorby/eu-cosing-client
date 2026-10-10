@@ -56,6 +56,19 @@ describe("live smoke — annexes (no key required)", () => {
 
 describe("live smoke — search (built-in public key; COSING_API_KEY overrides)", () => {
   itSearch(
+    "works with zero configuration (bare new CosingClient())",
+    { timeout: TIMEOUT },
+    async () => {
+      const client = new CosingClient();
+      const page = await client.ingredients.search({ inciName: "RETINOL" });
+      expect(page.total).toBeGreaterThan(0);
+      expect(
+        page.items.some((match) => match.item.inciName === "RETINOL"),
+      ).toBe(true);
+    },
+  );
+
+  itSearch(
     "finds RETINOL by exact INCI name",
     { timeout: TIMEOUT },
     async () => {
