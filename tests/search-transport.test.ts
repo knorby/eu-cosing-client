@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { CosingConfigError } from "../src/errors";
 import { CosingRequester } from "../src/http";
 import { CosingSearchTransport } from "../src/search-transport";
 import {
@@ -85,5 +86,23 @@ describe("CosingSearchTransport", () => {
     expect(JSON.parse(sort?.value ?? "null")).toEqual([
       { field: "inciName", order: "asc" },
     ]);
+  });
+
+  it("throws CosingConfigError when the API key is explicitly empty", async () => {
+    const fetch = queuedFetch(() => Response.json(searchResponse(0, [])));
+    const requester = new CosingRequester({ fetch, apiKey: "" });
+    const transport = new CosingSearchTransport(requester);
+    const promise = transport.search({ clauses: [] });
+    await expect(promise).rejects.toThrow(CosingConfigError);
+    await expect(promise).rejects.toThrow(
+      /key is empty.*Omit `apiKey` to use the built-in public key/s,
+    );
+  });
+
+  it("hints at key rotation on HTTP 400/500 responses", async () => {
+    const { transport } = makeTransport(
+      () => new Response("boom", { status: 500 }),
+    );
+    await expect(transport.search({ clauses: [] })).rejects.toThrow(/rotat/);
   });
 });
