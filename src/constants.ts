@@ -14,6 +14,20 @@ export const DEFAULT_SEARCH_API_URL =
   "https://webgate.ec.europa.eu/es/search-api/rest/search";
 
 /**
+ * Public EU Search API key shipped by the CosIng web app in its world-readable
+ * browser configuration (`assets/env-json-config.json`). It is a static
+ * application key, not a per-user credential — there is no registration flow.
+ * Verified 2026-10-10; may rotate on web-app redeploy (run
+ * `npm run check:search-key` to compare against the live value).
+ *
+ * Not a secret: served unauthenticated to every browser. The gitleaks
+ * allowlist below covers this public constant ONLY — never add a real
+ * credential here.
+ */
+// gitleaks:allow — public constant, see doc comment above
+export const DEFAULT_SEARCH_API_KEY = "285a77fd-1257-4271-8507-f0c6b2961203"; // gitleaks:allow
+
+/**
  * Open export API: annex CSV/XLS downloads, ingredient/regulation PDFs.
  * No authentication; GET only (HEAD returns 405).
  */

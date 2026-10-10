@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DEFAULT_SEARCH_API_KEY } from "../src/constants";
 import {
   CosingConfigError,
   CosingError,
@@ -45,6 +46,19 @@ describe("CosingRequester", () => {
       // biome-ignore lint/suspicious/noExplicitAny: test mutates the global
       (globalThis as any).fetch = saved;
     }
+  });
+
+  it("defaults apiKey to the built-in public EU Search key", () => {
+    const fetch = queuedFetch(() => json({ ok: true }));
+    const requester = new CosingRequester({ fetch });
+    expect(DEFAULT_SEARCH_API_KEY).toBe("285a77fd-1257-4271-8507-f0c6b2961203");
+    expect(requester.apiKey).toBe("285a77fd-1257-4271-8507-f0c6b2961203");
+  });
+
+  it("keeps an explicitly configured apiKey over the default", () => {
+    const fetch = queuedFetch(() => json({ ok: true }));
+    const requester = new CosingRequester({ fetch, apiKey: "sekrit" });
+    expect(requester.apiKey).toBe("sekrit");
   });
 
   it("GETs JSON with default headers and returns the parsed body", async () => {

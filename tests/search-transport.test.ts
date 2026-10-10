@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { CosingConfigError } from "../src/errors";
 import { CosingRequester } from "../src/http";
 import { CosingSearchTransport } from "../src/search-transport";
 import {
@@ -86,14 +85,5 @@ describe("CosingSearchTransport", () => {
     expect(JSON.parse(sort?.value ?? "null")).toEqual([
       { field: "inciName", order: "asc" },
     ]);
-  });
-
-  it("throws CosingConfigError when no API key is configured", async () => {
-    const fetch = queuedFetch(() => Response.json(searchResponse(0, [])));
-    const requester = new CosingRequester({ fetch });
-    const transport = new CosingSearchTransport(requester);
-    await expect(transport.search({ clauses: [] })).rejects.toThrow(
-      CosingConfigError,
-    );
   });
 });
