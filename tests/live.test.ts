@@ -17,8 +17,7 @@ import { DEFAULT_SEARCH_API_KEY } from "../src/constants";
  * loudly.
  */
 const RUN_LIVE = process.env.COSING_LIVE_TESTS === "1";
-const API_KEY =
-  process.env.COSING_API_KEY ?? DEFAULT_SEARCH_API_KEY;
+const API_KEY = process.env.COSING_API_KEY ?? DEFAULT_SEARCH_API_KEY;
 const itLive = RUN_LIVE ? it : it.skip;
 const itSearch = RUN_LIVE ? it : it.skip;
 const TIMEOUT = 60_000;
