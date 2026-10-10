@@ -38,6 +38,7 @@ pre-commit install   # sets up pre-commit hooks for file hygiene + secrets
 | `npm run test:watch` | Run tests in watch mode |
 | `npm run test:coverage` | Run tests with coverage reporting |
 | `npm run test:live` | Run opt-in CosIng smoke tests (search uses the built-in public key; `COSING_API_KEY` overrides) |
+| `npm run check:search-key` | Compare the built-in public search key against the web app's live config (also runs daily in CI) |
 | `npm run version:packages` | Consume changesets and refresh package-lock metadata |
 
 ## Git hooks

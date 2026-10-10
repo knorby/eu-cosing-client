@@ -120,7 +120,9 @@ not documented**; annex export methods need no key at all.
 
 The key can rotate when the web app is redeployed. If searches suddenly fail
 with HTTP 400/500, pass a fresh value via `new CosingClient({ apiKey })` —
-maintainers can check for rotation with `npm run check:search-key`.
+maintainers can check for rotation with `npm run check:search-key`, and a
+daily scheduled workflow runs the live test suite plus that check, opening a
+tracking issue if either fails.
 
 Requests embed the key in the URL query string; the client redacts the
 configured key from every error message and diagnostic it produces.
@@ -196,7 +198,7 @@ COSING_LIVE_TESTS=1 npm run test:live
 | `npm run typecheck` | Type-check `src/` + `tests/` with `tsc` (no emit) |
 | `npm test` | Run tests once (Vitest) |
 | `npm run test:live` | Run live smoke tests against the real CosIng endpoints (opt-in, never in CI; `COSING_API_KEY` only overrides the built-in public search key) |
-| `npm run check:search-key` | Compare the built-in public search key in `src/constants.ts` against the CosIng web app's live public config (manual, dev-only) |
+| `npm run check:search-key` | Compare the built-in public search key in `src/constants.ts` against the CosIng web app's live public config (also runs daily in the live-smoke workflow) |
 | `npx changeset` | Create a changeset (required for changes affecting published output) |
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.

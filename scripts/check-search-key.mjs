@@ -3,10 +3,11 @@
  * Compares the built-in public EU Search key (src/constants.ts) against the
  * CosIng web app's live public configuration.
  *
- * Maintainer tooling — manual, dev-only, never published (the `files`
- * whitelist in package.json ships only dist/ and docs). One unauthenticated
- * GET of a static JSON asset the web app serves to every browser; honest
- * User-Agent; no polling, no CI scheduling.
+ * Maintainer tooling — never published (the `files` whitelist in
+ * package.json ships only dist/, README.md, CHANGELOG.md, and LICENSE).
+ * One unauthenticated GET of a static JSON asset the web app serves to
+ * every browser; honest User-Agent. Runs manually and in the daily
+ * scheduled live-smoke workflow (.github/workflows/live-smoke.yml).
  *
  * Exit codes: 0 = up to date, 1 = drift (prints values to paste), 2 = could
  * not verify automatically (prints the manual DevTools fallback).

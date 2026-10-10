@@ -1,6 +1,6 @@
 # ADR-0001: Ship the public EU Search key as the default
 
-- **Status:** Proposed
+- **Status:** Accepted (maintainer sign-off given verbally 2026-10-10)
 - **Date:** 2026-10-10
 
 ## Context
@@ -33,11 +33,14 @@ the probe table above is its summary).
 2. Append a rotation hint to search error messages on HTTP 400/500, since a
    redeployed web app may ship a new key and every default-config consumer
    would start failing.
-3. Add a manual, dev-only `npm run check:search-key` script that compares
-   the shipped constant against the live `env-json-config.json` (one
-   unauthenticated GET, honest User-Agent, never scheduled in CI, never
-   published in the npm package). Live smoke tests run search against the
-   default key so rotation also surfaces there.
+3. Add `npm run check:search-key` (one unauthenticated GET, honest
+   User-Agent, never published in the npm package) plus a daily scheduled
+   workflow (`.github/workflows/live-smoke.yml`) that runs the live smoke
+   suite — which exercises the default key against the real service — and
+   the key check, opening a tracking issue on failure and closing it on
+   recovery. Amended 2026-10-10: the original posture kept the key check
+   manual-only; the maintainer directed scheduled verification, so daily
+   cadence (~a dozen requests/day) was accepted deliberately.
 4. Keep the key out of "user-managed credential" framing in docs: the README
    states there is nothing to register for and the override exists for
    rotation, not for personal keys.
@@ -45,8 +48,9 @@ the probe table above is its summary).
 ## Consequences
 
 - **Rotation risk:** the default may go stale after a web-app redeploy.
-  Mitigations: the 400/500 error hint, `check:search-key`, and the live
-  suite. A stale default is a patch release away from fixed.
+  Mitigations: the 400/500 error hint, `check:search-key`, and the daily
+  scheduled live-smoke workflow (worst-case detection latency: ~1 day). A
+  stale default is a patch release away from fixed.
 - **Reuse terms:** the Commission does not document third-party reuse terms
   for the public key. Shipping it is the same posture as the web app itself
   and existing third-party clients (e.g. RewardedIvan/cosIng-api, which
@@ -58,5 +62,6 @@ the probe table above is its summary).
   credential.
 - **Not chosen:** runtime fetching of the web app config (breaks
   universal-runtime/CORS constraints and sends third-party traffic to the
-  web-app host) and CI-scheduled key polling (unattended polling of EC
-  infrastructure is a posture change this decision deliberately avoids).
+  web-app host) and high-frequency key polling (the scheduled check runs
+  once daily — unattended *volume* polling of EC infrastructure remains a
+  posture this decision avoids).

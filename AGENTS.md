@@ -83,8 +83,8 @@ scanning). Both are needed for full coverage.
 | `npm test` | Run tests once (Vitest) |
 | `npm run test:watch` | Run tests in watch mode |
 | `npm run test:coverage` | Run tests with coverage reporting |
-| `npm run test:live` | Run live smoke tests against the real CosIng endpoints (opt-in, never in CI; `COSING_API_KEY` only overrides the built-in public search key) |
-| `npm run check:search-key` | Compare the built-in public search key in `src/constants.ts` against the CosIng web app's live public config (manual, dev-only) |
+| `npm run test:live` | Run live smoke tests against the real CosIng endpoints (opt-in for local runs; scheduled daily in the live-smoke workflow — never on PR/push CI; `COSING_API_KEY` only overrides the built-in public search key) |
+| `npm run check:search-key` | Compare the built-in public search key in `src/constants.ts` against the CosIng web app's live public config (also runs in the daily live-smoke workflow) |
 | `npm run version:packages` | Consume changesets and refresh lockfile metadata (not for seeding the already-versioned 0.1.0) |
 | `npx changeset` | Create a changeset (required for any change that affects published output) |
 
@@ -110,6 +110,13 @@ scanning). Both are needed for full coverage.
   in `.pre-commit-config.yaml`; the trufflehog golang hook uses the Go
   toolchain preinstalled on ubuntu-latest.
 - Husky hooks (Biome + commitlint) remain local only.
+- **Scheduled live smoke** (`.github/workflows/live-smoke.yml`): daily at
+  06:00 UTC (plus `workflow_dispatch`), runs the opt-in live test suite
+  against the real CosIng endpoints and `npm run check:search-key` for
+  public-key rotation. Needs no secrets — search defaults to the built-in
+  public key. On failure it opens (or comments on) a tracking issue and
+  closes it again on recovery. The PR/push suite above never touches EC
+  infrastructure.
 - Optional security scanning additions (free for public repos): CodeQL
   (<https://github.com/github/codeql-action>), gitleaks-action
   (<https://github.com/gitleaks/gitleaks-action>), Semgrep
