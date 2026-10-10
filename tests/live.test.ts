@@ -1,22 +1,26 @@
 import { describe, expect, it } from "vitest";
 import { CosingClient } from "../src/client";
+import { DEFAULT_SEARCH_API_KEY } from "../src/constants";
 
 /**
  * Live smoke tests — opt-in, never run in CI.
  *
  * ```bash
- * COSING_LIVE_TESTS=1 COSING_API_KEY=<key> npm run test:live
+ * COSING_LIVE_TESTS=1 npm run test:live
  * ```
  *
- * Annex tests need no API key. Search tests additionally need
- * `COSING_API_KEY`. Expectations are loose (counts, not exact payloads) so
- * routine upstream data updates do not break the tripwire; structural
- * regressions (empty results, unparseable exports) still fail loudly.
+ * Annex tests need no API key. Search tests use the built-in public EU
+ * Search key by default; set `COSING_API_KEY` only to exercise a different
+ * key (e.g. after a rotation). Expectations are loose (counts, not exact
+ * payloads) so routine upstream data updates do not break the tripwire;
+ * structural regressions (empty results, unparseable exports) still fail
+ * loudly.
  */
 const RUN_LIVE = process.env.COSING_LIVE_TESTS === "1";
-const API_KEY = process.env.COSING_API_KEY;
+const API_KEY =
+  process.env.COSING_API_KEY ?? DEFAULT_SEARCH_API_KEY;
 const itLive = RUN_LIVE ? it : it.skip;
-const itSearch = RUN_LIVE && API_KEY ? it : it.skip;
+const itSearch = RUN_LIVE ? it : it.skip;
 const TIMEOUT = 60_000;
 
 describe("live smoke — annexes (no key required)", () => {
@@ -51,7 +55,7 @@ describe("live smoke — annexes (no key required)", () => {
   );
 });
 
-describe("live smoke — search (requires COSING_API_KEY)", () => {
+describe("live smoke — search (built-in public key; COSING_API_KEY overrides)", () => {
   itSearch(
     "finds RETINOL by exact INCI name",
     { timeout: TIMEOUT },
