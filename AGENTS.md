@@ -134,30 +134,21 @@ PRs and release them all at once.
 - **Before a PR that changes published output**: run `npx changeset`, select
   bump type (patch/minor/major), write a summary. Commit the generated
   `.changeset/*.md` file alongside the code change.
-- **Release operations**: read [docs/releasing.md](docs/releasing.md) before
-  first publishing, configuring trusted publishing, enabling automation, or
-  retrying a failed release. Visibility, publishing, tags, and pushes require
-  explicit user authorization; changing release files does not authorize them.
+- **Release operations**: visibility, publishing, tags, and pushes require
+  explicit user authorization; changing release files does not authorize
+  them. For a failed release, see the quick-reference table below.
 - **Versioning**: use `npm run version:packages` to consume changesets and
-  refresh lockfile metadata together. The initial 0.1.0 is already versioned;
-  include its pre-publication fixes in that changelog rather than bumping it.
-- **GitHub Actions release** (`.github/workflows/release.yml`): installed,
-  disabled until `NPM_RELEASE_ENABLED=true` is set as a repository variable.
-  Release jobs also require `main`. Pending changesets select version mode;
-  no changesets with an unpublished version select publish mode; an already
-  published version selects no-op. The pack job runs the full checks and
-  development-dependency audit before building the artifact. Only the publish
-  job has `id-token: write`; Changesets actions are pinned to commit SHAs.
+  refresh lockfile metadata together.
+- **GitHub Actions release** (`.github/workflows/release.yml`): runs on
+  pushes to `main` and manual dispatch. Pending changesets select version
+  mode; no changesets with an unpublished version select publish mode; an
+  already published version selects no-op. The pack job runs the full
+  checks and development-dependency audit before building the artifact.
+  Only the publish job has `id-token: write`; Changesets actions are pinned
+  to commit SHAs.
 - **Always verify before publishing**: `npm run build && npm pack --dry-run`
   to confirm only `dist/`, `README.md`, `CHANGELOG.md`, and `LICENSE` are
   included.
-
-### Initial release
-
-Keep the release variable unset until the repository is public, the merged
-0.1.0 has been published manually, and npm trusted publishing is configured.
-Follow the ordered runbook in `docs/releasing.md`. The local publish uses
-`--provenance=false`; keep `publishConfig.provenance: true` committed for CI.
 
 ### Release failure quick reference
 
@@ -174,12 +165,23 @@ Follow the ordered runbook in `docs/releasing.md`. The local publish uses
 - **Trusted publishing (OIDC)** — the release workflow publishes with an OIDC
   token minted by GitHub Actions; there are no npm tokens involved (no
   `NPM_TOKEN` or `NODE_AUTH_TOKEN` secrets). The npm-side trusted-publisher
-  config must match the workflow exactly. This is compatible with 2FA
+  config (npmjs.com → package Settings → Trusted publishing) must match the
+  workflow exactly:
+
+  | Field | Value |
+  | --- | --- |
+  | Organization/user | `knorby` |
+  | Repository | `eu-cosing-client` |
+  | Workflow filename | `release.yml` (filename only, not a path) |
+  | Environment | `release` |
+  | Allowed actions | Allow direct `npm publish` |
+
+  This is compatible with 2FA
   (`npm profile enable-2fa auth-and-writes`) because no token needs an OTP.
 - **Provenance** — `publishConfig.provenance: true` in `package.json` enables
   npm provenance attestation (cryptographic link to commit + workflow).
   Provenance requires publishing from CI on a **public** repository; the
-  manual first publish overrides it on the CLI (see `docs/releasing.md`).
+  historical 0.1.0 seed was published locally without it.
 - **Scoped names** — use `@knorby/package`-style scoped names to prevent
   dependency confusion attacks. Scoped packages default to restricted
   visibility, so `publishConfig.access: "public"` is set.

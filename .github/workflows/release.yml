@@ -1,11 +1,11 @@
 name: Release
 
-# Disabled until the repository variable NPM_RELEASE_ENABLED is set to
-# "true" AFTER the manual 0.1.0 publish and trusted-publisher setup.
-# See docs/releasing.md. Publishing uses OIDC, without a stored npm token.
+# Runs on pushes to main and manual dispatch. Publishing uses OIDC trusted
+# publishing, without a stored npm token; the npm-side trusted-publisher
+# config must match this workflow exactly (see AGENTS.md → Publishing
+# security).
 #
-# Once enabled, runs on pushes to main. The `select-mode` job inspects state and
-# picks what happens next:
+# The `select-mode` job inspects state and picks what happens next:
 #   - changesets found          -> `version` job runs `version:packages`
 #     (bumps package.json, updates CHANGELOG.md and package-lock.json, deletes
 #     consumed changesets) and opens or updates a "Version Packages" pull request.
@@ -35,7 +35,7 @@ permissions: {}
 
 jobs:
   select-mode:
-    if: github.ref == 'refs/heads/main' && vars.NPM_RELEASE_ENABLED == 'true'
+    if: github.ref == 'refs/heads/main'
     name: Select Changesets mode
     runs-on: ubuntu-latest
     timeout-minutes: 15

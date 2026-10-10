@@ -4,7 +4,7 @@ Living documentation for design, architecture, and decisions.
 
 ## Structure
 
-- [releasing.md](releasing.md) — initial 0.1.0 publish and OIDC release runbook.
+- `superpowers/` and `specs/` — git-ignored planning scratch
 - `decisions/` — Architecture Decision Records (ADRs). Create a new markdown
   file per significant decision, using the template below.
 

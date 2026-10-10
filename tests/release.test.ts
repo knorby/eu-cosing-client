@@ -21,9 +21,9 @@ describe("release configuration", () => {
     );
   });
 
-  it("disables releases by default and restricts them to main", () => {
+  it("restricts release jobs to main without a kill switch", () => {
     const workflow = read(".github/workflows/release.yml");
-    expect(workflow).toContain("vars.NPM_RELEASE_ENABLED == 'true'");
+    expect(workflow).not.toContain("NPM_RELEASE_ENABLED");
     expect(workflow).toContain("github.ref == 'refs/heads/main'");
     expect(workflow).toContain("permissions: {}");
     expect(workflow).toContain("cancel-in-progress: false");
