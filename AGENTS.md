@@ -100,7 +100,12 @@ scanning). Both are needed for full coverage.
     so run `npm run check` before committing if hooks are skipped)
   - `npm run typecheck` (tsc, src + tests)
   - `npm run build` (tsup)
-  - `npm test` (Vitest)
+  - `npm run test:coverage` (Vitest with v8 coverage; writes `coverage/`)
+  - Codecov upload of `coverage/lcov.info` via
+    `codecov/codecov-action` (pinned by commit SHA). The workflow reads the
+    `CODECOV_TOKEN` repository secret; until it is configured the upload is
+    non-blocking (`fail_ci_if_error: false`), and fork PRs fall back to
+    tokenless upload where Codecov allows it.
   - `npm audit --audit-level=moderate` (vulnerability scan)
 - The **pre-commit suite** (file hygiene + secret scanning) also runs in CI
   via `.github/workflows/pre-commit.yml` on every push to `main` and PRs
