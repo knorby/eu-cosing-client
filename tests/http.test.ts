@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SEARCH_API_KEY } from "../src/constants";
 import {
+  CosingApiError,
   CosingConfigError,
   CosingError,
   CosingNetworkError,
@@ -32,6 +33,11 @@ describe("redactApiKey", () => {
     expect(
       redactApiKey("https://example.test/annexes/II/export-csv", "sekrit"),
     ).toBe("https://example.test/annexes/II/export-csv");
+  });
+
+  it("leaves text untouched when no key is configured", () => {
+    expect(redactApiKey("apiKey=sekrit", undefined)).toBe("apiKey=sekrit");
+    expect(redactApiKey("apiKey=sekrit", "")).toBe("apiKey=sekrit");
   });
 });
 
@@ -227,5 +233,184 @@ describe("CosingRequester", () => {
     const error = await pending.catch((e) => e);
     expect(error).toBeInstanceOf(CosingNetworkError);
     expect((error.cause as Error).name).toBe("AbortError");
+  });
+
+  it("rejects before sending when the signal is already aborted", async () => {
+    const fetch = queuedFetch(() => json({}));
+    const requester = new CosingRequester({ fetch });
+    const caller = new AbortController();
+    caller.abort();
+    const error = await requester
+      .getJson("https://example.test/x", { signal: caller.signal })
+      .catch((e) => e);
+    expect(error).toBeInstanceOf(CosingNetworkError);
+    expect(error.message).toMatch(/before it was sent/);
+    expect(fetch.calls).toHaveLength(0);
+  });
+
+  it("redacts non-Error values thrown by fetch", async () => {
+    const fetch = queuedFetch(() => {
+      throw "network exploded near apiKey=sekrit";
+    });
+    const requester = new CosingRequester({ fetch, apiKey: "sekrit" });
+    const error = await requester
+      .getJson("https://example.test/x")
+      .catch((e) => e);
+    expect(error).toBeInstanceOf(CosingNetworkError);
+    expect((error.cause as Error).message).toBe(
+      "network exploded near apiKey=***",
+    );
+  });
+
+  it("ignores a Retry-After header that is neither seconds nor a date", async () => {
+    const fetch = queuedFetch(
+      () =>
+        new Response("", {
+          status: 429,
+          headers: { "retry-after": "soon" },
+        }),
+    );
+    const requester = new CosingRequester({ fetch });
+    const error = await requester
+      .getJson("https://example.test/x")
+      .catch((e) => e);
+    expect(error).toBeInstanceOf(CosingApiError);
+    expect(error.retryAfterSeconds).toBeUndefined();
+  });
+
+  it("honors explicit retry options and gives up after maxRetries", async () => {
+    const fetch = queuedFetch(() => new Response("", { status: 429 }));
+    const requester = new CosingRequester({
+      fetch,
+      retryOn429: { maxRetries: 1, initialBackoffMs: 0 },
+    });
+    const error = await requester
+      .getJson("https://example.test/x")
+      .catch((e) => e);
+    expect(error).toBeInstanceOf(CosingApiError);
+    expect(error.status).toBe(429);
+    expect(fetch.calls).toHaveLength(2);
+  });
+
+  it("waits for Retry-After and maps an abort during the backoff", async () => {
+    const caller = new AbortController();
+    const fetch = queuedFetch(
+      () =>
+        new Response("", {
+          status: 429,
+          headers: { "retry-after": "1" },
+        }),
+    );
+    const requester = new CosingRequester({ fetch, retryOn429: true });
+    const pending = requester.getJson("https://example.test/x", {
+      signal: caller.signal,
+    });
+    setTimeout(() => caller.abort(), 10);
+    const error = await pending.catch((e) => e);
+    expect(error).toBeInstanceOf(CosingNetworkError);
+    expect((error.cause as Error).name).toBe("AbortError");
+    expect(fetch.calls).toHaveLength(1);
+  });
+
+  it("checks for cancellation at the start of the retry backoff", async () => {
+    const caller = new AbortController();
+    const fetch = queuedFetch(
+      () =>
+        new Response(
+          new ReadableStream({
+            cancel() {
+              caller.abort();
+              throw new Error("stream already closed");
+            },
+          }),
+          { status: 429 },
+        ),
+    );
+    const requester = new CosingRequester({ fetch, retryOn429: true });
+    const error = await requester
+      .getJson("https://example.test/x", { signal: caller.signal })
+      .catch((e) => e);
+    expect(error).toBeInstanceOf(CosingNetworkError);
+    expect(fetch.calls).toHaveLength(1);
+  });
+
+  it("POSTs JSON and parses the response", async () => {
+    const fetch = queuedFetch(() => json({ created: true }));
+    const requester = new CosingRequester({ fetch });
+    const body = await requester.postJson<{ created: boolean }>(
+      "https://example.test/x",
+      { a: 1 },
+    );
+    expect(body).toEqual({ created: true });
+    const call = fetch.calls[0];
+    expect(call.init?.method).toBe("POST");
+    expect(call.init?.body).toBe('{"a":1}');
+    expect(new Headers(call.init?.headers).get("content-type")).toBe(
+      "application/json",
+    );
+  });
+
+  it("resolves null for an empty POST body", async () => {
+    const fetch = queuedFetch(() => new Response("", { status: 200 }));
+    const requester = new CosingRequester({ fetch });
+    expect(await requester.postJson("https://example.test/x", {})).toBeNull();
+  });
+
+  it("maps POST failures to CosingApiError with Retry-After seconds", async () => {
+    const fetch = queuedFetch(
+      () =>
+        new Response("nope", {
+          status: 500,
+          headers: { "retry-after": "3" },
+        }),
+    );
+    const requester = new CosingRequester({ fetch });
+    const error = await requester
+      .postJson("https://example.test/x", {})
+      .catch((e) => e);
+    expect(error).toBeInstanceOf(CosingApiError);
+    expect(error.status).toBe(500);
+    expect(error.body).toBe("nope");
+    expect(error.retryAfterSeconds).toBe(3);
+  });
+
+  it("throws CosingParseError for an unparseable POST body with no content-type", async () => {
+    const fetch = queuedFetch(
+      () => new Response(new Uint8Array([60, 104, 116, 109, 108, 62])),
+    );
+    const requester = new CosingRequester({ fetch });
+    const error = await requester
+      .postJson("https://example.test/x", {})
+      .catch((e) => e);
+    expect(error).toBeInstanceOf(CosingParseError);
+    expect(error.message).toContain("content-type: unknown");
+  });
+
+  it("names an unknown content-type when GET JSON has no header", async () => {
+    const fetch = queuedFetch(
+      () => new Response(new Uint8Array([60, 104, 116, 109, 108, 62])),
+    );
+    const requester = new CosingRequester({ fetch });
+    const error = await requester
+      .getJson("https://example.test/x")
+      .catch((e) => e);
+    expect(error).toBeInstanceOf(CosingParseError);
+    expect(error.message).toContain("content-type: unknown");
+  });
+
+  it("GETs raw text and maps non-2xx responses to CosingApiError", async () => {
+    const ok = new CosingRequester({
+      fetch: queuedFetch(() => new Response("a,b\n1,2")),
+    });
+    expect(await ok.getText("https://example.test/x")).toBe("a,b\n1,2");
+
+    const failing = new CosingRequester({
+      fetch: queuedFetch(() => new Response("denied", { status: 403 })),
+    });
+    const error = await failing
+      .getText("https://example.test/x")
+      .catch((e) => e);
+    expect(error).toBeInstanceOf(CosingApiError);
+    expect(error.status).toBe(403);
   });
 });

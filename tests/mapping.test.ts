@@ -134,6 +134,23 @@ describe("toIngredient", () => {
     expect(item.relatedRegulations).toEqual(["(EU) 2024/996"]);
     expect(item.cosmeticRestriction).toBe("0.3% retinol equivalent");
   });
+
+  it("treats '-' identifier placeholders as absent raw values", () => {
+    const placeholders = result({
+      substanceId: ["1"],
+      casNo: ["-"],
+      ecNo: ["-"],
+    });
+    const { item } = toIngredient(placeholders, {
+      retrievedAt: RETRIEVED_AT,
+      matchedOn: "text",
+      exact: false,
+    });
+    expect(item.casNumbers).toEqual([]);
+    expect(item.ecNumbers).toEqual([]);
+    expect(item.rawCasNumber).toBeUndefined();
+    expect(item.rawEcNumber).toBeUndefined();
+  });
 });
 
 describe("toSubstance", () => {
@@ -168,6 +185,18 @@ describe("toSubstance", () => {
       "Contains Vitamin A. Consider your daily intake before use",
     );
   });
+
+  it("falls back to an empty id when the record has no substance id", () => {
+    const { item } = toSubstance(result({}), {
+      retrievedAt: RETRIEVED_AT,
+      matchedOn: "annex",
+      exact: true,
+    });
+    expect(item.substanceId).toBe("");
+    expect(item.source.url).toBe(
+      "https://ec.europa.eu/growth/tools-databases/cosing/details/",
+    );
+  });
 });
 
 describe("toFunction", () => {
@@ -191,6 +220,19 @@ describe("toFunction", () => {
     expect(item.source.id).toBe("101");
     expect(item.source.url).toBe(
       "https://ec.europa.eu/growth/tools-databases/cosing/reference/functions/list/ADHESIVE",
+    );
+  });
+
+  it("falls back to empty id and name when the vocabulary record omits them", () => {
+    const { item } = toFunction(result({}), {
+      retrievedAt: RETRIEVED_AT,
+      matchedOn: "none",
+      exact: true,
+    });
+    expect(item.functionId).toBe("");
+    expect(item.name).toBe("");
+    expect(item.source.url).toBe(
+      "https://ec.europa.eu/growth/tools-databases/cosing/reference/functions/list/",
     );
   });
 });

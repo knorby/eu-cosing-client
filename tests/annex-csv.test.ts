@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import Papa from "papaparse";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseAnnexCsv } from "../src/annex-csv";
 import { CosingParseError } from "../src/errors";
 import type { AnnexIIIEntry } from "../src/types/annex";
@@ -154,5 +155,74 @@ describe("parseAnnexCsv", () => {
       "preservative",
       "uv-filter",
     ]);
+  });
+
+  it("rejects input with no non-empty rows", () => {
+    expect(() =>
+      parseAnnexCsv("\n\n", { annex: "II", retrievedAt: RETRIEVED_AT }),
+    ).toThrow(/no rows/);
+  });
+
+  it("falls back to a prefixed Identified INGREDIENTS column", () => {
+    const csv = [
+      "ANNEX III",
+      "Reference Number,Chemical name / INN,Identified INGREDIENTS or substances e.g. the following",
+      "1,Retinol,SPIRONOLACTONE",
+    ].join("\n");
+    const export_ = parseAnnexCsv(csv, {
+      annex: "III",
+      retrievedAt: RETRIEVED_AT,
+    });
+    expect(export_.entries[0]?.identifiedIngredients).toBe("SPIRONOLACTONE");
+    // Columns the file omits stay undefined rather than throwing.
+    expect(export_.entries[0]?.casNumbers).toEqual([]);
+    expect(export_.entries[0]?.rawCasNumber).toBeUndefined();
+  });
+
+  it("treats short rows as absent and defaults a missing reference number to an empty string", () => {
+    const csv = [
+      "ANNEX II",
+      "Reference Number,Chemical name / INN,CAS Number",
+      "-,-",
+    ].join("\n");
+    const entry = parseAnnexCsv(csv, {
+      annex: "II",
+      retrievedAt: RETRIEVED_AT,
+    }).entries[0];
+    expect(entry.referenceNumber).toBe("");
+    expect(entry.chemicalName).toBeUndefined();
+    expect(entry.casNumbers).toEqual([]);
+    expect(entry.rawCasNumber).toBeUndefined();
+  });
+});
+
+describe("parseAnnexCsv defensive parse shapes", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("rejects when the CSV parser yields no data array", () => {
+    vi.spyOn(Papa, "parse").mockReturnValue({
+      data: undefined,
+    } as unknown as ReturnType<typeof Papa.parse>);
+    expect(() =>
+      parseAnnexCsv("anything", { annex: "II", retrievedAt: RETRIEVED_AT }),
+    ).toThrow(/no rows/);
+  });
+
+  it("treats missing cells in parsed rows as empty", () => {
+    vi.spyOn(Papa, "parse").mockReturnValue({
+      data: [
+        [undefined],
+        ["Reference Number", "Chemical name / INN"],
+        ["1", "Retinol"],
+      ],
+    } as unknown as ReturnType<typeof Papa.parse>);
+    const export_ = parseAnnexCsv("ignored", {
+      annex: "II",
+      retrievedAt: RETRIEVED_AT,
+    });
+    expect(export_.entries).toHaveLength(1);
+    expect(export_.entries[0]?.chemicalName).toBe("Retinol");
   });
 });

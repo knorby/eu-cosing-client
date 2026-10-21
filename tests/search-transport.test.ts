@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CosingConfigError } from "../src/errors";
+import { CosingConfigError, CosingParseError } from "../src/errors";
 import { CosingRequester } from "../src/http";
 import { CosingSearchTransport } from "../src/search-transport";
 import {
@@ -104,5 +104,39 @@ describe("CosingSearchTransport", () => {
       () => new Response("boom", { status: 500 }),
     );
     await expect(transport.search({ clauses: [] })).rejects.toThrow(/rotat/);
+  });
+
+  it("reports Retry-After without a rotation hint on other statuses", async () => {
+    const { transport } = makeTransport(
+      () =>
+        new Response("slow down", {
+          status: 429,
+          headers: { "retry-after": "7" },
+        }),
+    );
+    const error = await transport.search({ clauses: [] }).catch((e) => e);
+    expect(error.status).toBe(429);
+    expect(error.body).toBe("slow down");
+    expect(error.retryAfterSeconds).toBe(7);
+    expect(error.message).not.toMatch(/rotat/);
+  });
+
+  it("rejects an empty response body", async () => {
+    const { transport } = makeTransport(
+      () => new Response("", { status: 200 }),
+    );
+    const error = await transport.search({ clauses: [] }).catch((e) => e);
+    expect(error).toBeInstanceOf(CosingParseError);
+    expect(error.message).toMatch(/empty body/);
+  });
+
+  it("rejects a response body that is not valid JSON", async () => {
+    const { transport } = makeTransport(
+      () => new Response("<html>nope</html>", { status: 200 }),
+    );
+    const error = await transport.search({ clauses: [] }).catch((e) => e);
+    expect(error).toBeInstanceOf(CosingParseError);
+    expect(error.message).toMatch(/not valid JSON/);
+    expect(error.bodySnippet).toContain("html");
   });
 });
