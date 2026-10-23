@@ -154,6 +154,37 @@ describe("ingredients namespace", () => {
     expect(await client.ingredients.get("nope")).toBeNull();
   });
 
+  it("maps glossary, function and status filters to exact match metadata", async () => {
+    const cases = [
+      {
+        criteria: { glossaryName: "RETINOL" },
+        matchedOn: "glossaryName",
+        clause: '"term":{"nameOfCommonIngredientsGlossary":"RETINOL"}',
+      },
+      {
+        criteria: { functionName: "ANTIOXIDANT" },
+        matchedOn: "functionName",
+        clause: '"term":{"functionName":"ANTIOXIDANT"}',
+      },
+      {
+        criteria: { status: "Active" },
+        matchedOn: "status",
+        clause: '"term":{"status":"Active"}',
+      },
+    ] as const;
+    for (const { criteria, matchedOn, clause } of cases) {
+      const { client, fetch } = clientWith(() =>
+        Response.json(
+          searchResponse(1, [searchResult({ substanceId: ["1"] })]),
+        ),
+      );
+      const page = await client.ingredients.search(criteria);
+      expect(page.items[0].matchedOn).toBe(matchedOn);
+      expect(page.items[0].exact).toBe(true);
+      expect(String(fetch.calls[0].init?.body)).toContain(clause);
+    }
+  });
+
   it("rejects invalid paging inputs eagerly", async () => {
     const { client } = clientWith(() => Response.json(searchResponse(0, [])));
     await expect(
@@ -227,6 +258,18 @@ describe("ingredients namespace", () => {
     expect(fns[0].description).toBe("Tending to soften/smooth the skin.");
     expect(fns[0].functionId).toBe("101");
   });
+
+  it("getFunctions resolves [] when the ingredient does not exist", async () => {
+    const { client } = clientWith(() => Response.json(searchResponse(0, [])));
+    expect(await client.ingredients.getFunctions("nope")).toEqual([]);
+  });
+
+  it("getFunctions resolves [] when the ingredient lists no functions", async () => {
+    const { client } = clientWith(() =>
+      Response.json(searchResponse(1, [searchResult({ substanceId: ["1"] })])),
+    );
+    expect(await client.ingredients.getFunctions("1")).toEqual([]);
+  });
 });
 
 describe("functions namespace", () => {
@@ -265,6 +308,11 @@ describe("functions namespace", () => {
     const match = await client.functions.get("ADHESIVE");
     expect(match?.item.functionId).toBe("101");
     expect(match?.item.description).toContain("unite/bind/bond");
+  });
+
+  it("returns null when a function name is unknown", async () => {
+    const { client } = clientWith(() => Response.json(searchResponse(0, [])));
+    expect(await client.functions.get("NOPE")).toBeNull();
   });
 
   it("listAll yields every vocabulary entry across pages", async () => {
@@ -337,6 +385,116 @@ describe("substances namespace", () => {
   it("returns null when a substance get finds nothing", async () => {
     const { client } = clientWith(() => Response.json(searchResponse(0, [])));
     expect(await client.substances.get("nope")).toBeNull();
+  });
+
+  it("maps annex-only searches to matchedOn annex", async () => {
+    const { client, fetch } = clientWith(() =>
+      Response.json(
+        searchResponse(1, [
+          searchResult({ itemType: ["substance"], substanceId: ["1"] }),
+        ]),
+      ),
+    );
+    const page = await client.substances.search({ annex: "III" });
+    expect(page.items[0].matchedOn).toBe("annex");
+    expect(page.items[0].exact).toBe(true);
+    const body = String(fetch.calls[0].init?.body);
+    expect(body).toContain('"term":{"annexNo":"III"}');
+    expect(body).not.toContain('"refNo"');
+  });
+
+  it("maps CAS and EC identifier searches to the wildcard clause", async () => {
+    const cases = [
+      {
+        criteria: { casNo: "68-26-8" },
+        matchedOn: "casNo",
+        wildcard: "*68\\-26\\-8*",
+      },
+      {
+        criteria: { ecNo: "200-683-7" },
+        matchedOn: "ecNo",
+        wildcard: "*200\\-683\\-7*",
+      },
+    ] as const;
+    for (const { criteria, matchedOn, wildcard } of cases) {
+      const { client, fetch } = clientWith(() =>
+        Response.json(
+          searchResponse(1, [
+            searchResult({ itemType: ["substance"], substanceId: ["1"] }),
+          ]),
+        ),
+      );
+      const page = await client.substances.search(criteria);
+      expect(page.items[0].matchedOn).toBe(matchedOn);
+      expect(page.items[0].exact).toBe(false);
+      const contentType =
+        new Headers(fetch.calls[0].init?.headers).get("content-type") ?? "";
+      const parts = parseMultipart(
+        String(fetch.calls[0].init?.body),
+        boundaryOf(contentType),
+      );
+      const query = JSON.parse(
+        parts.find((part) => part.name === "query")?.value ?? "null",
+      );
+      expect(query.bool.must[1]).toEqual({
+        text: { query: wildcard, fields: ["casNo", "ecNo"] },
+      });
+    }
+  });
+
+  it("searches substances by fuzzy text when no filters are given", async () => {
+    const { client } = clientWith(() =>
+      Response.json(
+        searchResponse(1, [
+          searchResult({ itemType: ["substance"], substanceId: ["1"] }),
+        ]),
+      ),
+    );
+    const page = await client.substances.search({ text: "retinol" });
+    expect(page.items[0].matchedOn).toBe("text");
+    expect(page.items[0].exact).toBe(false);
+  });
+
+  it("searchAll yields a single page with default options", async () => {
+    const { client } = clientWith(() =>
+      Response.json(
+        searchResponse(1, [
+          searchResult({ itemType: ["substance"], substanceId: ["1"] }),
+        ]),
+      ),
+    );
+    const ids: string[] = [];
+    for await (const match of client.substances.searchAll({ annex: "III" })) {
+      ids.push(match.item.substanceId);
+    }
+    expect(ids).toEqual(["1"]);
+  });
+
+  it("searchAll yields substances across pages", async () => {
+    const { client } = clientWith((_url, _init, call) => {
+      const page = Number(new URL(call.url).searchParams.get("pageNumber"));
+      return Response.json(
+        searchResponse(
+          2,
+          [
+            searchResult({
+              itemType: ["substance"],
+              substanceId: [String(page)],
+            }),
+          ],
+          page,
+          1,
+        ),
+      );
+    });
+    const ids: string[] = [];
+    for await (const match of client.substances.searchAll(
+      { annex: "III" },
+      { pageSize: 1 },
+    )) {
+      ids.push(match.item.substanceId);
+    }
+    expect(ids).toEqual(["1", "2"]);
   });
 });
 
