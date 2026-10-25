@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+
+### Patch Changes
+
+- e69f553: Restore automated releases: pending changesets open a Version Packages pull request again, the release jobs run on the Node version from `.nvmrc` with pinned actions, and publishing stays token-free through npm trusted publishing.
+
 ## 0.2.0
 
 ### Minor Changes
