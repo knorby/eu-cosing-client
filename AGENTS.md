@@ -147,10 +147,14 @@ PRs and release them all at once.
 - **GitHub Actions release** (`.github/workflows/release.yml`): runs on
   pushes to `main` and manual dispatch. Pending changesets select version
   mode; no changesets with an unpublished version select publish mode; an
-  already published version selects no-op. The pack job runs the full
-  checks and development-dependency audit before building the artifact.
-  Only the publish job has `id-token: write`; Changesets actions are pinned
-  to commit SHAs.
+  already published version selects no-op. The version job opens or updates
+  the Version Packages PR with the default `GITHUB_TOKEN` (no PAT or
+  `CHANGESETS_TOKEN` secret), which requires "Allow GitHub Actions to create
+  and approve pull requests" in the repository's Actions settings. The pack
+  job runs the full checks and development-dependency audit before building
+  the artifact. The select, version, and pack jobs read Node from `.nvmrc`;
+  publish pins Node 24 and upgrades npm for OIDC. Only the publish job has
+  `id-token: write`; actions are pinned to commit SHAs.
 - **Always verify before publishing**: `npm run build && npm pack --dry-run`
   to confirm only `dist/`, `README.md`, `CHANGELOG.md`, and `LICENSE` are
   included.

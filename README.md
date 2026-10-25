@@ -1,5 +1,12 @@
 # @knorby/eu-cosing-client
 
+[![Codecov](https://codecov.io/gh/knorby/eu-cosing-client/branch/main/graph/badge.svg)](https://codecov.io/gh/knorby/eu-cosing-client)
+[![Tests](https://github.com/knorby/eu-cosing-client/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/knorby/eu-cosing-client/actions/workflows/tests.yml)
+[![npm version](https://img.shields.io/npm/v/@knorby/eu-cosing-client.svg)](https://www.npmjs.com/package/@knorby/eu-cosing-client)
+[![GitHub](https://img.shields.io/badge/GitHub-knorby%2Feu--cosing--client-181717?logo=github&logoColor=white)](https://github.com/knorby/eu-cosing-client)
+[![License](https://img.shields.io/github/license/knorby/eu-cosing-client.svg)](https://github.com/knorby/eu-cosing-client/blob/main/LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-7.0-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+
 A universal TypeScript client for the European Commission's **CosIng**
 (**Cos**metic **Ing**redient) database — cosmetic ingredient identity
 (INCI/CAS/EC), functions, and the regulatory Annexes of Regulation (EC) No
