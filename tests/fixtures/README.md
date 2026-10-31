@@ -10,7 +10,6 @@ date, title, section header) plus selected data rows exercising tricky
 shapes — quoted fields with embedded newlines, `" / "`- and `;`-joined
 multi-identifier CAS/EC strings, `-` absent values, lettered reference
 numbers.
-
 - `annex-ii.csv` — rows 1, 2, 4 (prohibited substances)
 - `annex-iii.csv` — rows 376, 377 (restricted substances; retinol entry
   with multiline conditions and `;`-joined identifiers)
